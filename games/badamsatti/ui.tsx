@@ -59,7 +59,7 @@ export default function BadamSattiUI({ view, me, players, legal, active, scores,
 
   // Clear a stale selection when the hand or turn changes.
   useEffect(() => {
-    setSelected((s) => s.filter((c) => view.myHand.includes(c)));
+    setSelected((s) => (s.every((c) => view.myHand.includes(c)) ? s : s.filter((c) => view.myHand.includes(c))));
   }, [view.myHand]);
 
   const sel = selected[0];
@@ -85,7 +85,7 @@ export default function BadamSattiUI({ view, me, players, legal, active, scores,
     const place = placeOf(id);
     if (place !== null) return { badge, dim: true, sub: `${place === 1 ? "🏆" : "✓"} Out ${ordinal(place)}` };
     if (view.passedLastTurn[id]) return { badge, sub: "Passed" };
-    if (multiRound) return { badge, sub: `${view.totals[id] ?? 0} pts` };
+    if (multiRound) return { badge, sub: `${view.totals[id] ?? 0} pt${view.totals[id] === 1 ? "" : "s"}` };
     return { badge, sub: `${count} card${count === 1 ? "" : "s"}` };
   });
 
@@ -269,6 +269,7 @@ function SuitRowView({ row, size, playable }: { row: SuitRow; size: CardSize; pl
           {RANK_LABEL[rank]}
           <span>{sym}</span>
         </span>
+        {mine && <span className={`${P}-you`} aria-hidden>YOU</span>}
       </span>
     );
   };
