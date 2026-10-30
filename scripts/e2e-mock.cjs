@@ -28,8 +28,12 @@ const fail = (msg) => {
 async function newPlayer(browser, size, label) {
   const ctx = await browser.newContext({ viewport: size, deviceScaleFactor: 2, isMobile: true, hasTouch: true });
   const page = await ctx.newPage();
-  page.on("pageerror", (e) => problems.push(`${size.name} ${label}: pageerror ${e.message}`));
-  page.on("console", (m) => m.type() === "error" && problems.push(`${size.name} ${label}: console ${m.text()}`));
+  const report = (kind, text) => {
+    const msg = `${size.name} ${label}: ${kind} ${text.split("\n").find((l) => l.trim() && !/^%[so]$/.test(l.trim())) ?? text}`;
+    if (!problems.includes(msg)) problems.push(msg);
+  };
+  page.on("pageerror", (e) => report("pageerror", e.message));
+  page.on("console", (m) => m.type() === "error" && report("console", m.text()));
   page.on("dialog", (d) => d.accept());
   return { ctx, page, label, size };
 }
