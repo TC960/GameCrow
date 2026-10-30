@@ -160,16 +160,16 @@ Phone-friendly design: a **Clash!** button for the player about to go down to on
 for a short window.
 
 - **Early call**: `clash` is legal for the turn player (phases play/drawn/respond) when they hold exactly **2** cards, haven't called
-  yet this turn, and have at least one legal `play`. Sets `called = them` (public, logged `clash`). The call is cleared when the
-  turn passes or any card is played.
+  yet this turn, and have at least one legal `play`. Sets `called = them` (public, logged `clash` with `late: false`). The call is
+  cleared when the turn passes, any card is played, or the caller draws.
 - When a play leaves the player with exactly **1** card (checked after all effects; for a 7/0 swap it is the actor's final hand):
   - if they had called → safe;
   - otherwise they become **exposed**: `exposed[player] = now + catchSeconds·1000`.
 - While exposed:
-  - the exposed player may still `clash` (late call) at any time → no longer exposed, safe;
+  - the exposed player may still `clash` (late call) at any time → no longer exposed, safe (logged `clash` with `late: true`);
   - **any other seated player** (turn or not) may `{ type: "catch", target }` → target draws `clashPenalty` cards, no longer exposed.
     Turn order is unaffected.
-  - exposure ends when the timer passes (`@timeout` via `deadline`), or the player's hand size stops being 1 (went out, drew, swapped).
+  - exposure ends when the timer passes (when the engine's `@timeout` fires; until then `catch` stays legal), or the player's hand size stops being 1 (went out, drew, swapped).
 - `deadline(state)` = earliest exposure time, or `null`. Several players may be exposed at once.
 - Jump-in plays (§8) can expose a player too (there is no early call for out-of-turn plays; late call works).
 - `clashRule: "off"`: no `clash`/`catch` actions ever, nobody is exposed, `deadline` is always null.
@@ -217,7 +217,7 @@ out, exposure), and play continues from them. The log entry has `jumpIn: true`.
 
 ## 10. Hidden information (viewFor)
 
-Visible to everyone: top discard and the last ≤ 4 discard cards (`discardTop`, ids — they are face up on the table), `color`,
+`me` = the viewer's id (null for spectators). Visible to everyone: top discard and the last ≤ 4 discard cards (`discardTop`, ids — they are face up on the table), `color`,
 `direction`, `turn`, `phase`, `pending`, counts (`drawCount`, `discardCount`, `handCounts`), `called`, `exposed`, totals, settings,
 `lastRound`, the public `log` (colour/value only, never ids), and `revealedHands` only in roundOver/over.
 

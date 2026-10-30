@@ -130,6 +130,8 @@ export type Action =
   | { type: "@timeout" };
 
 export interface View {
+  /** The viewer (null = spectator). */
+  me: PlayerId | null;
   phase: Phase;
   round: number;
   settings: Settings;
