@@ -167,8 +167,6 @@ export interface View {
   history: HandResult[];
   lastHand: HandResult | null;
   removedCards: Card[];
-  /** The card that must open trick 1 (null when firstLead = "leftOfDealer"). */
-  openingCard: Card | null;
   targetScore: number;
   settings: Settings;
 }

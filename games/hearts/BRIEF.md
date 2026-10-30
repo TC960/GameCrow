@@ -107,6 +107,10 @@ Secret, never in another player's or the spectator's view (or in `legal`):
 - other players' hands; the deck order;
 - another player's pass selection, and the cards another player committed to pass. The cards I receive become visible
   to me only after the exchange (they are then in `myHand` and `received`).
+- Leak-test guidance: a card string is secret from viewer V if it is in another player's hand, another player's
+  `passSelected`, or (during the pass phase only) another player's committed pass, **and** V does not legitimately know
+  it: exclude V's own hand, V's `myPassed` (V knows what V gave away) and V's `received`. Cards that have been played
+  (current trick, `lastTrick`, `pointCards`) are public.
 
 Visible to me only: `myHand`, `passSelected` (my current selection), `myPassed` (the 3 cards I passed, from my confirm
 to the end of the hand; these are cards I legitimately know about — leak tests must exclude them when checking the
@@ -115,7 +119,8 @@ receiver's hand), `received` (the 3 cards I received, after the exchange until t
 Public: phase, hand number, dealer, pass direction, who has confirmed their pass (`passConfirmed`), hand card counts,
 whose turn, the current trick, the last completed trick and its winner, trick number, hearts broken, cards won that
 score (`pointCards`: hearts, Q♠, and J♦ when that rule is on), points taken this hand, tricks won, totals, hand history,
-removed cards, opening card, settings.
+removed cards, settings. (The view deliberately has no "opening card" field, so that no unplayed card string appears in
+another player's view; the UI reads the constant `OPENING_CARD[n]`.)
 
 Spectator (`viewFor(state, null)`): public fields only; `myHand` = `[]`, `passSelected` = `[]`, `myPassed`/`received`/
 `passTo`/`passFrom` = null.
