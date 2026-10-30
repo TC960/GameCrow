@@ -1,0 +1,80 @@
+/* Psych game styles. Every class is prefixed .g-psych- and uses kit variables (both themes). */
+
+.g-psych-board { display: flex; flex-direction: column; gap: 12px; padding-bottom: 4px; }
+
+.g-psych-meta { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; min-height: 28px; }
+.g-psych-meta .gc-countdown { font-size: 1.1rem; padding: 2px 10px; border-radius: 999px; background: var(--surface-2); }
+.g-psych-chip {
+  font-size: 0.78rem; font-weight: 700; color: var(--muted);
+  padding: 2px 10px; border-radius: 999px; border: 1px solid var(--border); background: var(--surface);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 60%;
+}
+
+/* Big prompt card */
+.g-psych-prompt {
+  display: flex; flex-direction: column; gap: 6px;
+  padding: 18px 16px;
+  border-radius: var(--radius);
+  background: linear-gradient(160deg, var(--surface-2), var(--surface));
+  border: 1px solid var(--border);
+  border-left: 5px solid var(--accent);
+  box-shadow: var(--shadow);
+}
+.g-psych-prompt-text {
+  font-size: 1.35rem; font-weight: 800; line-height: 1.35; letter-spacing: -0.01em;
+  overflow-wrap: anywhere;
+}
+.g-psych-prompt-sub { font-size: 0.9rem; font-weight: 700; color: var(--accent); }
+.g-psych-blank {
+  display: inline-block; min-width: 3.2em; height: 1.05em; vertical-align: baseline;
+  border-bottom: 3px solid var(--accent); margin: 0 2px;
+}
+.g-psych-subject {
+  background: var(--accent-soft); color: var(--accent);
+  padding: 0 5px; border-radius: 6px; box-shadow: inset 0 -2px 0 var(--accent);
+}
+
+/* My submitted answer, echoed back */
+.g-psych-mine {
+  display: flex; flex-direction: column; gap: 4px;
+  padding: 12px 14px; border-radius: var(--radius-sm);
+  background: var(--accent-soft); border: 1px dashed var(--accent);
+}
+.g-psych-mine-text { font-size: 1.15rem; font-weight: 750; overflow-wrap: anywhere; }
+
+/* Vote option label */
+.g-psych-opt { display: block; font-size: 1.05rem; font-weight: 650; overflow-wrap: anywhere; }
+
+/* Status row in the thumb zone: turn indicator + host skip */
+.g-psych-statusrow { display: flex; align-items: center; justify-content: center; gap: 8px; flex-wrap: wrap; }
+
+/* Reveal cards */
+.g-psych-result {
+  display: flex; flex-direction: column; gap: 4px;
+  padding: 12px 14px; border-radius: var(--radius-sm);
+  background: var(--surface); border: 1px solid var(--border);
+}
+.g-psych-result--real { border: 2px solid var(--ok); background: color-mix(in srgb, var(--ok) 12%, var(--surface)); }
+.g-psych-result--mine { box-shadow: inset 4px 0 0 var(--accent); }
+.g-psych-result-head { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.g-psych-result-text { font-size: 1.1rem; font-weight: 750; overflow-wrap: anywhere; }
+.g-psych-tag { font-size: 0.82rem; font-weight: 700; color: var(--muted); flex: 1; min-width: 0; overflow-wrap: anywhere; }
+.g-psych-tag--real { color: var(--ok); }
+.g-psych-gain {
+  flex: none; font-weight: 800; font-size: 0.9rem; font-variant-numeric: tabular-nums;
+  padding: 1px 10px; border-radius: 999px; background: var(--accent); color: var(--accent-text);
+}
+.g-psych-voters { font-size: 0.88rem; color: var(--muted); overflow-wrap: anywhere; }
+
+/* Round points */
+.g-psych-points { display: flex; flex-wrap: wrap; gap: 6px; }
+.g-psych-pt {
+  display: inline-flex; align-items: center; gap: 6px; max-width: 100%;
+  padding: 4px 10px 4px 4px; border-radius: 999px;
+  background: var(--surface); border: 1px solid var(--border);
+  font-size: 0.9rem; font-variant-numeric: tabular-nums;
+}
+.g-psych-pt--plus { border-color: var(--accent); }
+.g-psych-pt--plus strong { color: var(--accent); }
+.g-psych-pt--me { background: var(--surface-2); }
+.g-psych-pt-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 9em; }
