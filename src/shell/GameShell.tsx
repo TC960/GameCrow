@@ -103,21 +103,21 @@ export function GameShell({ envelope, seats, isHost, meta, settingsSchema, setti
 
       {UI ? (
         <GameErrorBoundary resetKey={envelope.seq}>
-        <Suspense fallback={<div className="gc-scroll gc-center gc-muted">Loading game…</div>}>
-          <UI
-            view={envelope.view}
-            me={envelope.me}
-            players={seats}
-            legal={envelope.legal}
-            active={envelope.active}
-            isHost={isHost}
-            scores={envelope.scores}
-            over={envelope.over}
-            deadline={envelope.deadline}
-            act={act}
-            pending={pending}
-          />
-        </Suspense>
+          <Suspense fallback={<div className="gc-scroll gc-center gc-muted">Loading game…</div>}>
+            <UI
+              view={envelope.view}
+              me={envelope.me}
+              players={seats}
+              legal={envelope.legal}
+              active={envelope.active}
+              isHost={isHost}
+              scores={envelope.scores}
+              over={envelope.over}
+              deadline={envelope.deadline}
+              act={act}
+              pending={pending}
+            />
+          </Suspense>
         </GameErrorBoundary>
       ) : (
         <div className="gc-scroll gc-center">This game isn't available in this version. Refresh to update.</div>
