@@ -143,6 +143,13 @@ export function Lobby({ code, lobby, catalog }: { code: string; lobby: LobbyData
             </ul>
           </section>
 
+          {lastMatch?.over && (
+            <section className="gc-panel gc-stack" aria-label="Last game">
+              <span className="gc-label">Last game</span>
+              <Scoreboard scores={lastMatch.scores} players={lastMatch.players} me={lastMatch.me} />
+            </section>
+          )}
+
           <section className="gc-stack" aria-label="Game">
             <span className="gc-label">{isHost ? "Pick a game" : "Game"}</span>
             <div className="gc-game-picker" role="radiogroup">
@@ -191,12 +198,6 @@ export function Lobby({ code, lobby, catalog }: { code: string; lobby: LobbyData
             </section>
           )}
 
-          {lastMatch?.over && (
-            <section className="gc-panel gc-stack" aria-label="Last game">
-              <span className="gc-label">Last game</span>
-              <Scoreboard scores={lastMatch.scores} players={lastMatch.players} me={lastMatch.me} />
-            </section>
-          )}
         </div>
       </div>
 

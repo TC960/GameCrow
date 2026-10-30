@@ -54,33 +54,38 @@ function JoinForm({ code }: { code: string }) {
   const [name, setName] = useState(savedName);
   const [busy, setBusy] = useState(false);
   return (
-    <div className="gc-scroll">
-      <form
-        className="gc-stack"
-        style={{ marginTop: "12vh" }}
-        onSubmit={async (e) => {
-          e.preventDefault();
-          setBusy(true);
-          try {
-            saveName(name);
-            await join({ code, name, token: deviceToken() });
-          } catch (err) {
-            toast(errorText(err), "error");
-          } finally {
-            setBusy(false);
-          }
-        }}
-      >
-        <h1 className="gc-h1 gc-center">Join room {code}</h1>
-        <input className="gc-input" value={name} maxLength={20} placeholder="Your nickname" autoFocus onChange={(e) => setName(e.target.value)} />
-        <button type="submit" className="gc-btn gc-btn--primary gc-btn--lg" disabled={busy || !name.trim()}>
-          Join
-        </button>
-        <Button variant="ghost" onClick={() => navigate("/")}>
-          Cancel
-        </Button>
-      </form>
-    </div>
+    <>
+      <header className="gc-header">
+        <span className="gc-header-title">🐦‍⬛ GameCrow</span>
+      </header>
+      <div className="gc-scroll">
+        <form
+          className="gc-stack"
+          style={{ marginTop: "10vh" }}
+          onSubmit={async (e) => {
+            e.preventDefault();
+            setBusy(true);
+            try {
+              saveName(name);
+              await join({ code, name, token: deviceToken() });
+            } catch (err) {
+              toast(errorText(err), "error");
+            } finally {
+              setBusy(false);
+            }
+          }}
+        >
+          <h1 className="gc-h1 gc-center">Join room {code}</h1>
+          <input className="gc-input" value={name} maxLength={20} placeholder="Your nickname" autoFocus onChange={(e) => setName(e.target.value)} />
+          <button type="submit" className="gc-btn gc-btn--primary gc-btn--lg" disabled={busy || !name.trim()}>
+            Join
+          </button>
+          <Button variant="ghost" onClick={() => navigate("/")}>
+            Cancel
+          </Button>
+        </form>
+      </div>
+    </>
   );
 }
 
