@@ -111,7 +111,9 @@ from `ctx.now`. The UI gets `props.deadline` (`<Countdown deadline={...} />`).
 Bots see only their own view. The default is a random legal action, with `FREE_TEXT` filled by a silly word.
 Provide `botAction` if random play can't finish the game in reasonable time or makes the game feel broken.
 Bots must be able to finish every game: `tests/contract.test.ts` simulates full games for min, mid and
-max player counts with several seeds.
+max player counts with several seeds, using default settings. (v1.1) If the defaults are invalid for a count
+(`validateSettings` refuses it, e.g. Judgement's 7 cards × 8 players), the contract test skips that count and
+the game's own tests must simulate it with valid settings. The minimum player count must always work with defaults.
 
 ### settings (house rules)
 `settings: SettingField[]` is pure data: `number` (min/max/step), `boolean`, `select`, `multiselect`, `text`;
