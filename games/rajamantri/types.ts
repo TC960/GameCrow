@@ -172,7 +172,10 @@ export interface View {
   amGuesser: boolean;
   /** This round's result during "reveal"/"over", else null. */
   lastResult: RoundResult | null;
-  /** All finished (revealed) rounds, oldest first: for per-round score columns. */
+  /**
+   * All finished (revealed) rounds, oldest first: for per-round score columns. Earlier rounds' roles are
+   * public history (roles are reshuffled every round), so leak checks should look at the current round only.
+   */
   history: RoundResult[];
   /** Cumulative points. */
   totals: Record<PlayerId, number>;
