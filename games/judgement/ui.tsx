@@ -33,6 +33,7 @@ export default function JudgementUI({ view, me, players, legal, active, isHost, 
   const [selected, setSelected] = useState<Card[]>([]);
   const [bid, setBid] = useState<number | null>(null);
   const [peek, setPeek] = useState(false);
+  const short = useShortScreen();
 
   // Reset the local picks when a new round starts.
   useEffect(() => {
@@ -40,7 +41,7 @@ export default function JudgementUI({ view, me, players, legal, active, isHost, 
     setSelected([]);
   }, [view.round]);
 
-  const name = (id: PlayerId | null | undefined) => (id === me ? "You" : players.find((p) => p.id === id)?.name ?? "?");
+  const name = (id: PlayerId | null | undefined) => (id === me ? "You" : (players.find((p) => p.id === id)?.name ?? "?"));
   const seated = me !== null && view.order.includes(me);
   const myTurn = me !== null && active.includes(me);
 
@@ -83,48 +84,27 @@ export default function JudgementUI({ view, me, players, legal, active, isHost, 
     </span>
   );
 
+  // A finished trick is cleared at once and kept as lastTrick: show it on the table until the next card.
+  const showingLast = playing && view.trick.length === 0 && view.lastTrick !== null;
+  const shownTrick = showingLast ? view.lastTrick!.plays : view.trick;
+
   let board: ReactNode;
   if (bidding) {
     board = (
       <div className="g-judgement-felt">
         <div className="g-judgement-felt-label">{label}</div>
-        <BidList view={view} name={name} />
+        <BidList view={view} name={name} tally={!(myTurn && seated)} />
       </div>
     );
   } else if (playing) {
-    // A trick that just finished is cleared at once and kept as lastTrick: show it until the next card.
-    const showingLast = view.trick.length === 0 && view.lastTrick !== null;
-    const shown = showingLast ? view.lastTrick!.plays : view.trick;
-    const caption = showingLast
-      ? `${name(view.lastTrick!.winner)} won the trick · ${view.turn === me ? "your lead" : `${name(view.turn)} leads`}`
-      : view.trick.length === 0
-        ? `${name(view.turn)} ${view.turn === me ? "lead" : "leads"} trick ${view.tricksPlayed + 1}`
-        : `Trick ${view.tricksPlayed + 1} of ${view.handSize}${view.ledSuit ? ` · ${SUIT_SYMBOL[view.ledSuit]} led` : ""}`;
     board = (
       <TableArea label={label}>
-        <div className="g-judgement-play">
-          <SizedTrick
-            players={players}
-            me={me}
-            plays={shown.map((p) => ({ playerId: p.player, card: p.card }))}
-            winner={showingLast ? view.lastTrick!.winner : null}
-          />
-          <div className="g-judgement-caption">
-            <span className="g-judgement-caption-text" aria-live="polite">
-              {showingLast && <span aria-hidden>🏆 </span>}
-              {caption}
-            </span>
-            {!showingLast && view.lastTrick && (
-              <button type="button" className="g-judgement-chip" onClick={() => setPeek(true)}>
-                Last trick
-              </button>
-            )}
-          </div>
-          <div className="g-judgement-tally">
-            Bids {view.bidTotal} for {view.handSize} {view.handSize === 1 ? "trick" : "tricks"} ·{" "}
-            {view.bidTotal > view.handSize ? "over" : view.bidTotal < view.handSize ? "under" : "even"}
-          </div>
-        </div>
+        <SizedTrick
+          players={showingLast ? players.map((p) => (p.id === view.lastTrick!.winner ? { ...p, name: `🏆 ${p.name}` } : p)) : players}
+          me={me}
+          plays={shownTrick.map((p) => ({ playerId: p.player, card: p.card }))}
+          winner={showingLast ? view.lastTrick!.winner : null}
+        />
       </TableArea>
     );
   } else {
@@ -132,8 +112,6 @@ export default function JudgementUI({ view, me, players, legal, active, isHost, 
   }
 
   // ---------- Bottom ----------
-  const myBid = me !== null ? view.bids[me] : null;
-  const myLine = seated && myBid !== null && myBid !== undefined ? (playing ? `Bid ${myBid} · Won ${view.tricksWon[me!] ?? 0}` : `You bid ${myBid}`) : null;
   const timer = deadline ? (
     <>
       {" "}
@@ -144,20 +122,29 @@ export default function JudgementUI({ view, me, players, legal, active, isHost, 
   let turnText: ReactNode;
   if (phase === "over") turnText = "Game over";
   else if (phase === "summary") turnText = canNext ? "Round over · deal the next one" : "Waiting for the host to deal";
-  else if (myTurn) turnText = (
-    <>
-      {bidding ? "Your bid" : "Your turn"}
-      {myLine && playing ? ` · ${myLine}` : ""}
-      {timer}
-    </>
-  );
-  else if (view.turn) turnText = (
-    <>
-      Waiting for {name(view.turn)}
-      {myLine ? ` · ${myLine}` : ""}
-      {timer}
-    </>
-  );
+  else if (playing && showingLast) {
+    const w = view.lastTrick!.winner;
+    turnText = (
+      <>
+        <span aria-hidden>🏆</span> {w === me ? "You won the trick · your lead" : `${name(w)} won the trick`}
+        {timer}
+      </>
+    );
+  } else if (myTurn) {
+    turnText = (
+      <>
+        {bidding ? "Your bid" : view.ledSuit ? `Your turn · ${SUIT_SYMBOL[view.ledSuit]} led` : "Your lead"}
+        {timer}
+      </>
+    );
+  } else if (view.turn) {
+    turnText = (
+      <>
+        Waiting for {name(view.turn)}
+        {timer}
+      </>
+    );
+  }
 
   const forbidden = view.forbiddenBid;
   const pickerMax = view.handSize;
@@ -167,7 +154,14 @@ export default function JudgementUI({ view, me, players, legal, active, isHost, 
 
   const bottom = (
     <>
-      <TurnIndicator active={active} me={me} players={players} text={turnText} />
+      <div className="g-judgement-turnrow">
+        <TurnIndicator active={active} me={me} players={players} text={turnText} />
+        {playing && view.lastTrick && !showingLast && (
+          <Button size="sm" onClick={() => setPeek(true)}>
+            Last trick
+          </Button>
+        )}
+      </div>
       {seated && view.myHand.length > 0 && (
         <Hand
           cards={view.myHand}
@@ -175,7 +169,7 @@ export default function JudgementUI({ view, me, players, legal, active, isHost, 
           selected={playing ? selected : []}
           onSelect={playing ? setSelected : undefined}
           onPlay={playing && plays.length > 0 ? doPlay : undefined}
-          size={bidding && myTurn ? "sm" : "md"}
+          size={short || (bidding && myTurn) ? "sm" : "md"}
           disabled={!playing}
         />
       )}
@@ -183,9 +177,7 @@ export default function JudgementUI({ view, me, players, legal, active, isHost, 
         <div className="g-judgement-bid">
           <NumberPicker min={0} max={pickerMax} value={chosenBid} onChange={setBid} disabled={disabledBids} label="Your bid" />
           <div className="g-judgement-note">
-            {forbidden !== null
-              ? `Can't bid ${forbidden}: total would equal ${view.handSize}`
-              : `Bids so far: ${view.bidTotal} for ${view.handSize}`}
+            {forbidden !== null ? `Can't bid ${forbidden}: total would equal ${view.handSize}` : `Bids so far: ${view.bidTotal} for ${view.handSize}`}
           </div>
         </div>
       )}
@@ -226,6 +218,18 @@ export default function JudgementUI({ view, me, players, legal, active, isHost, 
 
 // ---------------------------------------------------------------------------
 
+/** Phones under ~760px tall get the smaller hand so the trick keeps its room. */
+function useShortScreen(): boolean {
+  const read = () => typeof window !== "undefined" && window.innerHeight < 760;
+  const [short, setShort] = useState(read);
+  useEffect(() => {
+    const update = () => setShort(read());
+    window.addEventListener("resize", update);
+    return () => window.removeEventListener("resize", update);
+  }, []);
+  return short;
+}
+
 const SIZE_ORDER: CardSize[] = ["xs", "sm", "md"];
 
 /** The kit Trick with a card size that fits the space it gets (and the kit's per-count cap). */
@@ -251,7 +255,7 @@ function SizedTrick(props: { players: SeatInfo[]; me: PlayerId | null; plays: { 
   );
 }
 
-function BidList({ view, name }: { view: View; name: (id: PlayerId | null) => string }) {
+function BidList({ view, name, tally }: { view: View; name: (id: PlayerId | null) => string; tally: boolean }) {
   const lastBidder = view.bidOrder[view.bidOrder.length - 1];
   return (
     <div className="g-judgement-bids">
@@ -263,16 +267,22 @@ function BidList({ view, name }: { view: View; name: (id: PlayerId | null) => st
             <li key={id} className={`g-judgement-bidrow ${now ? "g-judgement-bidrow--now" : ""}`}>
               {now && <span aria-hidden>▶</span>}
               <span className="g-judgement-bidname">{name(id)}</span>
-              {id === view.dealer && <span className="g-judgement-tag" aria-label="dealer">D</span>}
+              {id === view.dealer && (
+                <span className="g-judgement-tag" aria-label="dealer">
+                  D
+                </span>
+              )}
               <span className="g-judgement-bidval">{b !== null && b !== undefined ? b : now ? "…" : "–"}</span>
             </li>
           );
         })}
       </ol>
-      <div className="g-judgement-tally">
-        Bids total {view.bidTotal} of {view.handSize}
-        {view.forbiddenBid !== null && view.turn === lastBidder ? ` · ${name(lastBidder)} can't bid ${view.forbiddenBid}` : ""}
-      </div>
+      {tally && (
+        <div className="g-judgement-tally">
+          Bids total {view.bidTotal} of {view.handSize}
+          {view.forbiddenBid !== null && view.turn === lastBidder ? ` · ${name(lastBidder)} can't bid ${view.forbiddenBid}` : ""}
+        </div>
+      )}
     </div>
   );
 }
@@ -312,7 +322,7 @@ function Summary({
   const r: RoundResult | null = view.lastRound;
   const columns: ScoreColumn[] = view.history.map((h) => ({
     label: `R${h.round}`,
-    values: Object.fromEntries(view.order.map((id) => [id, `${h.made[id] ? "✓" : "✗"}${signed(h.points[id] ?? 0)}`])),
+    values: Object.fromEntries(view.order.map((id) => [id, h.made[id] ? `${h.points[id] ?? 0}` : `✗${h.points[id] ?? 0}`])),
   }));
   const top = scores.filter((s) => s.rank === 1).map((s) => name(s.playerId));
   const mine = r && me !== null && me in r.bids ? r : null;
@@ -339,20 +349,24 @@ function Summary({
             columns={[
               { label: "Bid", values: r.bids },
               { label: "Won", values: r.won },
-              { label: "Pts", values: Object.fromEntries(view.order.map((id) => [id, `${r.made[id] ? "✓" : "✗"} ${signed(r.points[id] ?? 0)}`])) },
+              {
+                label: "Pts",
+                values: Object.fromEntries(view.order.map((id) => [id, `${r.made[id] ? "✓" : "✗"} ${signed(r.points[id] ?? 0)}`])),
+              },
             ]}
           />
         </>
       )}
       {columns.length > 1 && (
         <>
-          <div className="gc-label">Round by round</div>
+          <div className="gc-label">Round by round{columns.length > 4 ? " · swipe for more →" : ""}</div>
           <Scoreboard scores={scores} players={players} me={me} columns={columns} />
         </>
       )}
       {!over && view.next && (
         <p className="gc-muted gc-small gc-center">
-          Next: round {view.next.round}, {view.next.handSize} {view.next.handSize === 1 ? "card" : "cards"}, {trumpLabel(view.next.trump)}, dealer {name(view.next.dealer)}
+          Next: round {view.next.round}, {view.next.handSize} {view.next.handSize === 1 ? "card" : "cards"}, {trumpLabel(view.next.trump)}, dealer{" "}
+          {name(view.next.dealer)}
         </p>
       )}
     </div>

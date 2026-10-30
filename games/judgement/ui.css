@@ -2,31 +2,35 @@
 .g-judgement-head { display: inline-flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 4px 8px; font-weight: 650; }
 .g-judgement-head .gc-suit-badge { font-size: 0.85rem; }
 
-/* Playing board: trick fills the felt, caption + tally below. */
-.g-judgement-play { width: 100%; height: 100%; display: flex; flex-direction: column; align-items: stretch; gap: 4px; }
-.g-judgement-trick { flex: 1; min-height: 150px; position: relative; display: flex; }
-.g-judgement-trick .gc-trick { min-height: 150px; }
-.g-judgement-caption { display: flex; align-items: center; justify-content: center; gap: 8px; flex-wrap: wrap; text-align: center; }
-.g-judgement-caption-text { font-weight: 700; font-size: 0.92rem; }
-.g-judgement-chip {
-  min-height: var(--tap); padding: 0 14px; border-radius: 999px;
-  border: 1px solid rgba(255, 255, 255, 0.35); background: rgba(0, 0, 0, 0.3); color: #f4f7f5;
-  font-size: 0.85rem; font-weight: 700; cursor: pointer; touch-action: manipulation;
-}
-.g-judgement-tally { text-align: center; font-size: 0.82rem; opacity: 0.85; }
+/* Playing board: the trick fills the felt, with room for the seat cards' name tags. */
+.g-judgement-trick { flex: 1; align-self: stretch; position: relative; display: flex; padding: 10px 0; }
 
-/* Bidding board: list of bids in bidding order. */
-.g-judgement-bids { width: 100%; max-width: 360px; display: flex; flex-direction: column; gap: 6px; }
-.g-judgement-bidlist { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: 1fr 1fr; gap: 4px 8px; }
-.g-judgement-bidrow {
-  display: flex; align-items: center; justify-content: space-between; gap: 6px;
-  min-height: 34px; padding: 2px 10px; border-radius: 10px;
-  background: rgba(0, 0, 0, 0.22); border: 1px solid transparent;
+/* Turn line with the "Last trick" peek next to it. */
+.g-judgement-turnrow { display: flex; align-items: center; justify-content: center; gap: 8px; flex-wrap: wrap; }
+
+/* Bidding board: compact felt panel (no min-height, so the bid picker keeps the thumb zone). */
+.g-judgement-felt {
+  flex: 1; min-height: min-content;
+  border-radius: 24px;
+  background: radial-gradient(ellipse at center, color-mix(in srgb, var(--felt) 80%, white 6%) 0%, var(--felt) 60%, var(--felt-edge) 100%);
+  border: 1px solid rgba(0, 0, 0, 0.25);
+  box-shadow: inset 0 0 40px rgba(0, 0, 0, 0.35);
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px;
+  padding: 5px 10px; color: #f4f7f5;
 }
-.g-judgement-bidrow--now { border-color: var(--accent); background: rgba(0, 0, 0, 0.35); }
-.g-judgement-bidname { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 650; font-size: 0.92rem; }
-.g-judgement-bidval { font-weight: 800; font-variant-numeric: tabular-nums; white-space: nowrap; }
-.g-judgement-tag { margin-left: 6px; font-size: 0.7rem; font-weight: 800; padding: 0 6px; border-radius: 999px; background: rgba(255, 255, 255, 0.18); }
+.g-judgement-felt-label { text-align: center; font-size: 0.85rem; opacity: 0.9; }
+.g-judgement-bids { width: 100%; display: flex; flex-direction: column; align-items: center; gap: 4px; }
+.g-judgement-bidlist { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; justify-content: center; gap: 4px; }
+.g-judgement-bidrow {
+  display: inline-flex; align-items: center; gap: 6px;
+  min-height: 28px; padding: 0 10px; border-radius: 999px;
+  background: rgba(0, 0, 0, 0.25); border: 2px solid transparent;
+}
+.g-judgement-bidrow--now { border-color: var(--accent); background: rgba(0, 0, 0, 0.4); }
+.g-judgement-bidname { max-width: 90px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 650; font-size: 0.9rem; }
+.g-judgement-bidval { font-weight: 800; font-variant-numeric: tabular-nums; white-space: nowrap; min-width: 1ch; text-align: center; }
+.g-judgement-tag { font-size: 0.7rem; font-weight: 800; padding: 0 6px; border-radius: 999px; background: rgba(255, 255, 255, 0.2); }
+.g-judgement-tally { text-align: center; font-size: 0.82rem; opacity: 0.85; }
 
 /* Bid picker in the thumb zone. */
 .g-judgement-bid { display: flex; flex-direction: column; gap: 4px; }
