@@ -6,7 +6,7 @@ import { readFileSync, existsSync, statSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { describe, expect, it } from "vitest";
 import { GAMES } from "../games/registry";
-import { buildView, startMatch } from "../engine/match";
+import { buildView, startMatch, startProblem } from "../engine/match";
 import { lintSchema } from "../engine/settings";
 import { assertJsonSafe, makePlayers, simulateGame } from "../engine/testing";
 
@@ -25,6 +25,13 @@ describe.each(Object.values(GAMES).map((g) => [g.meta.id, g] as const))("contrac
 
   const counts = [...new Set([plugin.meta.minPlayers, Math.min(plugin.meta.maxPlayers, plugin.meta.minPlayers + 2), plugin.meta.maxPlayers])];
   it.each(counts)("bots finish a full game with %i players (several seeds)", (n) => {
+    // Default house rules may legitimately refuse some counts (e.g. Judgement: 7 cards × 8 players > 52).
+    // Such counts must then be covered by the game's own tests with valid settings.
+    const problem = startProblem(plugin, makePlayers(n), {});
+    if (problem && n !== plugin.meta.minPlayers) {
+      console.info(`[contract:${id}] ${n} players skipped with default settings: ${problem}`);
+      return;
+    }
     for (const seed of [1, 2, 3]) {
       const { match } = simulateGame(plugin, { players: n, seed });
       expect(match.over).toBe(true);
