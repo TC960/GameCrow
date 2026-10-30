@@ -90,12 +90,14 @@ next is 4th).
 
 When only one player still holds cards, that player is the **loser** of the round:
 - `places[loser] = n`. Their remaining cards (always exactly 1 card: the Joker, or the odd queen) are moved out of
-  `hands` into the round result `loserCards` (so all `hands` are empty after a round ends; the card is public now).
+  `hands` into the top-level `loserCards` (so all `hands` are empty after a round ends; the card is public now).
+  `loserCards` is non-empty only in phases `"roundOver"`/`"over"` and resets to `[]` on `nextRound` (so a past round's
+  card string never appears in a view while that card sits in someone's hand). `RoundResult` has no card field.
 - Round points: `n - place` for each player (loser 0; with 4 players and no ties: 3, 2, 1, 0).
 - `points[id] += roundPoints[id]`; `losses[loser] += 1`; a `RoundResult` is appended to `results`.
 - `turn`, `target` become `null`. Phase becomes `"over"` if `round === settings.rounds`, else `"roundOver"`.
 - `"roundOver"`: only the host has a move, `{ type: "nextRound" }` (round + 1, fresh deal per §2; `pairs`, `places`,
-  `lastDraw` reset; `points`, `losses`, `results` kept).
+  `lastDraw`, `loserCards` reset; `points`, `losses`, `results` kept).
 
 `scores(state)` (public, live):
 - `scoring: "places"`: totals = `points` (completed rounds) plus, during `"play"`, `n - place` for players already out in the
@@ -123,7 +125,7 @@ A player may see: their own hand (`myHand`, in the real position order), every p
   (If it paired, the card is public anyway through `pairs`.) The target does **not** get it in the view.
 - the deck order.
 
-After a round ends, `results[*].loserCards` is public (hands are empty by then). The spectator (`null`) view has
+After a round ends, `loserCards` is public (hands are empty by then). The spectator (`null`) view has
 `myHand: []`, `myDrawnCard: null`. Legal actions of the drawer contain only indices `0..count-1`.
 
 Leak-safe naming: view keys contain no substrings that look like card codes.
@@ -137,7 +139,8 @@ Leak-safe naming: view keys contain no substrings that look like card codes.
 ## 10. View shape (summary; see `types.ts`)
 
 `phase, step, round, totalRounds, settings, order, myHand, handCounts, turn, target, places, pairs, lastDraw
-(public: drawer, from, index, paired, out), myDrawnCard, points, losses, results`.
+(public: drawer, from, index, paired, out), myDrawnCard, points, losses, results, loserCards`.
+`RoundResult = { round, loser, places, points }`.
 
 ## 11. UI plan (360–430px portrait, kit only)
 

@@ -57,8 +57,6 @@ export type PublicDraw = {
 export type RoundResult = {
   round: number;
   loser: PlayerId;
-  /** The loser's last card(s): the Joker, or the odd queen. Public once the round is over. */
-  loserCards: Card[];
   /** Final places this round (1 = first out, n = loser). */
   places: Record<PlayerId, number>;
   /** Points this round: n - place. */
@@ -88,6 +86,11 @@ export interface State {
   /** Rounds lost (left holding the loser card). */
   losses: Record<PlayerId, number>;
   results: RoundResult[];
+  /**
+   * The just-finished round's loser card(s) (the Joker, or the odd queen): public, set only in
+   * phases "roundOver"/"over", [] during play (so no past card string is visible while it is in a hand).
+   */
+  loserCards: Card[];
 }
 
 export type Action =
@@ -119,4 +122,6 @@ export interface View {
   points: Record<PlayerId, number>;
   losses: Record<PlayerId, number>;
   results: RoundResult[];
+  /** Same as State.loserCards: [] during play. */
+  loserCards: Card[];
 }
