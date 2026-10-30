@@ -28,6 +28,7 @@ import "./ui.css";
 export default function RajaMantriUI({ view, me, players, legal, active, scores, act, pending }: GameUIProps<View, Action>) {
   const [target, setTarget] = useState<PlayerId | null>(null);
   const [redealOpen, setRedealOpen] = useState(false);
+  const width = useAppWidth();
 
   // A new deal (next round or re-deal) clears the pending accusation.
   const dealKey = `${view.round}:${view.redeals}:${view.phase}`;
@@ -42,6 +43,8 @@ export default function RajaMantriUI({ view, me, players, legal, active, scores,
   const chosen = target !== null && targets.includes(target) ? target : null;
 
   const nameOf = (id: PlayerId) => (id === me ? "You" : players.find((p) => p.id === id)?.name ?? "?");
+  /** Name for the middle of a sentence ("accused you"). */
+  const nameIn = (id: PlayerId) => (id === me ? "you" : nameOf(id));
   const info = (role: Role): RoleInfo => view.roleTable.find((r) => r.role === role) ?? { role, name: role, emoji: "❓", points: 0 };
   const guesserInfo = info(view.guesserRole);
   const guessing = view.phase === "guess";
@@ -171,10 +174,16 @@ export default function RajaMantriUI({ view, me, players, legal, active, scores,
   } else {
     const result = view.lastResult;
     const over = view.phase === "over";
-    const columns = view.history.map((r) => ({ label: `R${r.round}`, values: r.points }));
+    // Per-round columns: the latest rounds that fit the phone width, so Total never scrolls away.
+    const fit = Math.max(1, Math.floor((width - 196) / 52));
+    const shown = view.history.slice(-fit);
+    const columns = shown.map((r) => ({ label: `R${r.round}`, values: r.points }));
     const scoreTable = (
       <div className="g-rajamantri-section">
-        <span className="gc-label">{over ? "Final scores" : "Scores"}</span>
+        <span className="gc-label">
+          {over ? "Final scores" : "Scores"}
+          {shown.length < view.history.length && ` · last ${shown.length} rounds`}
+        </span>
         <Scoreboard scores={scores} players={players} me={me} columns={columns} />
       </div>
     );
@@ -194,12 +203,12 @@ export default function RajaMantriUI({ view, me, players, legal, active, scores,
           roundLabel
         )}
         {over && scoreTable}
-        {result && <ResultBlock result={result} view={view} me={me} players={players} info={info} nameOf={nameOf} over={over} />}
+        {result && <ResultBlock result={result} view={view} me={me} players={players} info={info} nameOf={nameOf} nameIn={nameIn} over={over} />}
         {!over && scoreTable}
       </div>
     );
     bottom = over ? (
-      <TurnIndicator active={[]} me={me} players={players} text="Game over · tap Results for standings" />
+      <TurnIndicator active={[]} me={me} players={players} text="Game over" />
     ) : canNext ? (
       <>
         <TurnIndicator active={[]} me={me} players={players} text={view.isLastRound ? "That was the last round" : `Round ${view.round} done`} />
@@ -220,7 +229,7 @@ export default function RajaMantriUI({ view, me, players, legal, active, scores,
       <Sheet open={redealOpen && canRedeal} onClose={() => setRedealOpen(false)} title="Re-deal this round?">
         <div className="gc-stack">
           <p className="gc-muted" style={{ margin: 0 }}>
-            Use this only if {guesserName} {view.guesser === me ? "are" : "is"} away or stuck. Everyone gets new roles for round {view.round}; nobody
+            Use this only if {guesserName} is away or stuck. Everyone gets new roles for round {view.round}; nobody
             scores.
           </p>
           <Button
@@ -238,6 +247,18 @@ export default function RajaMantriUI({ view, me, players, legal, active, scores,
       </Sheet>
     </>
   );
+}
+
+/** Width of the phone-width app column (it never grows past 480px). */
+function useAppWidth(): number {
+  const read = () => Math.min(window.innerWidth, 480);
+  const [w, setW] = useState(read);
+  useEffect(() => {
+    const on = () => setW(read());
+    window.addEventListener("resize", on);
+    return () => window.removeEventListener("resize", on);
+  }, []);
+  return w;
 }
 
 /** Short goal line under the player's own role (only rendered while held). */
@@ -330,6 +351,7 @@ function ResultBlock({
   players,
   info,
   nameOf,
+  nameIn,
   over,
 }: {
   result: RoundResult;
@@ -338,6 +360,7 @@ function ResultBlock({
   players: SeatInfo[];
   info: (r: Role) => RoleInfo;
   nameOf: (id: PlayerId) => string;
+  nameIn: (id: PlayerId) => string;
   over: boolean;
 }) {
   const g = nameOf(result.guesser);
@@ -362,8 +385,8 @@ function ResultBlock({
         <BigStatus>{result.correct ? `✅ ${g} caught the Chor!` : `❌ Wrong guess!`}</BigStatus>
         <span className="g-rajamantri-sub">
           {result.correct
-            ? `${g} (${gRole.emoji} ${gRole.name}) accused ${nameOf(result.chor)}, the 🦹 Chor.`
-            : `${g} (${gRole.emoji} ${gRole.name}) accused ${nameOf(result.accused)}. The 🦹 Chor was ${nameOf(result.chor)}${
+            ? `${g} (${gRole.emoji} ${gRole.name}) accused ${nameIn(result.chor)}, the 🦹 Chor.`
+            : `${g} (${gRole.emoji} ${gRole.name}) accused ${nameIn(result.accused)}. The 🦹 Chor was ${nameIn(result.chor)}${
                 swap ? `, who takes the ${gRole.name}'s ${gRole.points} points.` : "."
               }`}
         </span>
