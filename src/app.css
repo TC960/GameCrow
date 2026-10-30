@@ -1,0 +1,48 @@
+/* App screens (home, lobby, settings editor, dev bar). Games use ui/kit/kit.css only. */
+.gc-home { padding-top: 4vh; }
+.gc-hero { text-align: center; display: flex; flex-direction: column; align-items: center; gap: 6px; margin-bottom: 8px; }
+.gc-hero-logo { width: 88px; height: 88px; border-radius: 22px; display: block; margin: 0 auto; box-shadow: var(--shadow); }
+.gc-divider-text { display: flex; align-items: center; gap: 10px; color: var(--muted); font-size: 0.85rem; }
+.gc-divider-text::before, .gc-divider-text::after { content: ""; flex: 1; height: 1px; background: var(--border); }
+
+.gc-room-badge { font-weight: 850; letter-spacing: 0.12em; background: var(--accent); color: var(--accent-text); border-radius: 8px; padding: 2px 8px; font-size: 0.9rem; }
+.gc-code-card { display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 16px; border-radius: var(--radius); border: 1px dashed var(--accent); background: var(--accent-soft); cursor: pointer; width: 100%; }
+.gc-code-big { font-size: 2.8rem; font-weight: 900; letter-spacing: 0.25em; padding-left: 0.25em; line-height: 1.1; }
+
+.gc-player-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; }
+.gc-player-row { width: 100%; min-height: 52px; display: flex; align-items: center; gap: 10px; padding: 4px 8px; border-radius: var(--radius-sm); border: 0; background: transparent; text-align: left; cursor: pointer; }
+.gc-player-row:disabled { cursor: default; opacity: 1; }
+.gc-player-row:not(:disabled):active { background: var(--surface-2); }
+
+.gc-game-picker { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+.gc-game-tile { min-height: 96px; display: flex; flex-direction: column; align-items: flex-start; gap: 2px; padding: 12px; border-radius: var(--radius); border: 1px solid var(--border); background: var(--surface); cursor: pointer; text-align: left; }
+.gc-game-tile--on { border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent-soft); background: var(--surface-2); }
+.gc-game-tile:disabled { opacity: 0.45; cursor: default; }
+.gc-game-emoji { font-size: 1.8rem; line-height: 1.1; }
+.gc-game-name { font-weight: 800; }
+
+.gc-details summary { min-height: var(--tap); display: flex; align-items: center; font-weight: 700; cursor: pointer; }
+.gc-details ul { margin: 0 0 8px; padding-left: 20px; color: var(--muted); }
+
+.gc-settings { display: flex; flex-direction: column; gap: 4px; }
+.gc-settings-group { margin-top: 10px; }
+.gc-setting { display: flex; align-items: center; gap: 12px; min-height: 52px; padding: 4px 0; border-bottom: 1px solid var(--border); }
+.gc-setting--column { flex-direction: column; align-items: stretch; gap: 8px; padding: 8px 0; }
+.gc-setting-label { font-weight: 650; }
+.gc-stepper { display: flex; align-items: center; gap: 4px; }
+.gc-stepper button { width: var(--tap); height: var(--tap); border-radius: 50%; border: 1px solid var(--border); background: var(--surface-2); font-size: 1.3rem; font-weight: 800; cursor: pointer; }
+.gc-stepper button:disabled { opacity: 0.35; }
+.gc-stepper output { min-width: 36px; text-align: center; font-weight: 800; font-variant-numeric: tabular-nums; }
+.gc-segments { display: flex; flex-wrap: wrap; gap: 6px; }
+.gc-segment { min-height: var(--tap); padding: 0 14px; border-radius: 999px; border: 1px solid var(--border); background: var(--surface-2); font-weight: 650; cursor: pointer; }
+.gc-segment--on { background: var(--accent); color: var(--accent-text); border-color: transparent; }
+.gc-segment:disabled { cursor: default; }
+.gc-segment:disabled:not(.gc-segment--on) { opacity: 0.5; }
+.gc-switch { appearance: none; -webkit-appearance: none; width: 52px; height: 32px; border-radius: 999px; background: var(--surface-3); position: relative; cursor: pointer; flex: none; margin: 6px 0; transition: background 0.15s; }
+.gc-switch::after { content: ""; position: absolute; top: 3px; left: 3px; width: 26px; height: 26px; border-radius: 50%; background: #fff; transition: transform 0.15s; box-shadow: 0 1px 3px rgba(0,0,0,0.3); }
+.gc-switch:checked { background: var(--accent); }
+.gc-switch:checked::after { transform: translateX(20px); }
+.gc-switch:disabled { opacity: 0.6; cursor: default; }
+
+.gc-dev-bar { display: flex; gap: 4px; align-items: center; overflow-x: auto; padding: 4px 6px; background: #2b1d3d; flex: none; }
+.gc-dev-bar .gc-segment { min-height: 32px; padding: 0 10px; font-size: 0.8rem; }
