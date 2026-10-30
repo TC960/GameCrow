@@ -20,7 +20,15 @@ npm test                # engine, backend (in-memory Convex) and per-game tests
 npm run typecheck
 ```
 
-Without a Convex deployment you can still try every game locally at **`/sandbox`** (dev only): the real
+**No Convex deployment? `npm run dev` still works end to end.** Without `VITE_CONVEX_URL`, the dev server runs
+the real `convex/*.ts` functions in memory (convex-test, see `scripts/mock-convex-plugin.ts`), bots and timers
+included; rooms reset when the dev server restarts or server code changes. Each browser profile is one player;
+to seat several players in one browser, open tabs with `?player=2`, `?player=3`, ... (dev only). Set
+`VITE_MOCK_CONVEX=1` to use the mock even when `VITE_CONVEX_URL` is set. Production builds never include it.
+`node scripts/e2e-mock.cjs [outDir]` (with `npx vite --port 5190` running) plays a full room with a host, two
+guests and a bot at 375×667 and 412×915 and saves screenshots.
+
+You can also try every game locally at **`/sandbox`** (dev only): the real
 engine plus bots, with a seat switcher. `node scripts/screenshots.cjs <dir> "/sandbox/<game>?players=4&steps=10&chrome=0"`
 captures 375×667 and 412×915 screenshots.
 
