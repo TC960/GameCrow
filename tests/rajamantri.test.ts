@@ -31,6 +31,7 @@ const DEFAULTS: Settings = {
   guesser: "mantri",
   revealRaja: true,
   wrongGuess: "swap",
+  guessSeconds: 90,
   pointsRaja: 1000,
   pointsMantri: 800,
   pointsSipahi: 500,
@@ -141,6 +142,7 @@ describe("meta and settings schema", () => {
     expect(byKey.revealRaja).toMatchObject({ type: "boolean", default: true });
     expect(byKey.wrongGuess).toMatchObject({ type: "select", default: "swap" });
     expect((byKey.wrongGuess as { options: { value: string }[] }).options.map((o) => o.value).sort()).toEqual(["swap", "zero"]);
+    expect(byKey.guessSeconds).toMatchObject({ type: "number", default: 90, min: 0, max: 300, step: 15 });
     for (const role of ROLE_ORDER) {
       expect(byKey[ROLE_POINTS_KEY[role]], role).toMatchObject({ type: "number", default: DEFAULT_ROLE_POINTS[role] });
     }
@@ -170,7 +172,7 @@ describe("setup", () => {
       expect(s.phase).toBe("guess");
       expect(s.round).toBe(1);
       expect(s.history).toEqual([]);
-      expect(s.redeals).toBe(0);
+      expect(s.guessDeadline).toBe(h.now + 90_000);
       expect(s.totals).toEqual(Object.fromEntries(ids(n).map((p) => [p, 0])));
       expect(s.guesser).toBe(holderOf(s.roles, "mantri"));
       expect(s.raja).toBe(holderOf(s.roles, "raja"));
@@ -231,7 +233,7 @@ describe("setup", () => {
       expect(v.isLastRound).toBe(false);
       expect(v.lastResult).toBeNull();
       expect(v.history).toEqual([]);
-      expect(v.redeals).toBe(0);
+      expect(v.guessDeadline).toBe(h.state.guessDeadline);
       expect(v.guesser).toBe(h.state.guesser);
       expect(v.guesserRole).toBe("mantri");
       expect(v.amGuesser).toBe(p === h.state.guesser);
@@ -317,39 +319,121 @@ describe("guess phase: visibility and legal actions", () => {
     expect(h.envelope(null).legal).toEqual([]);
   });
 
-  it("host (not the guesser) may only redeal; nobody else has actions", () => {
+  it("only the guesser has actions during the guess (the host included, whatever their role)", () => {
     const h = harness(4);
     craft(h, ["raja", "mantri", "sipahi", "chor"]); // guesser p1, host p0
-    expect(h.legal("p0")).toEqual([{ type: "redeal" }]);
-    expect(h.legal("p2")).toEqual([]);
-    expect(h.legal("p3")).toEqual([]);
-    expect(h.tryAct("p2", { type: "redeal" })).not.toBeNull();
-    expect(h.tryAct("p1", { type: "redeal" })).not.toBeNull();
+    for (const p of ["p0", "p2", "p3"]) expect(h.legal(p), p).toEqual([]);
     expect(h.tryAct("p0", { type: "guess", target: "p3" })).not.toBeNull();
+    expect(h.tryAct("p0", { type: "nextRound" })).not.toBeNull();
+    expect(h.tryAct("p0", { type: "@timeout" })).not.toBeNull();
+    for (const roles of [["sipahi", "mantri", "raja", "chor"], ["chor", "mantri", "sipahi", "raja"]] as Role[][]) {
+      craft(h, roles);
+      expect(h.legal("p0")).toEqual([]);
+    }
+  });
+});
+
+describe("guess timer (guessSeconds)", () => {
+  it("guessSeconds 0: no deadline and nothing ever fires", () => {
+    const h = harness(4, { guessSeconds: 0 });
+    expect(h.state.guessDeadline).toBeNull();
+    expect(plugin.deadline!(h.state)).toBeNull();
+    for (const p of [...ids(4), null]) {
+      expect(h.envelope(p).deadline).toBeNull();
+      expect(h.view(p).guessDeadline).toBeNull();
+    }
+    expect(h.advanceTime(24 * 3600_000)).toBe(false);
+    expect(h.state.phase).toBe("guess");
   });
 
-  it("host who is the guesser gets no redeal", () => {
-    const h = harness(4);
-    craft(h, ["mantri", "raja", "sipahi", "chor"]);
-    expect(h.legal("p0").some((a) => a.type === "redeal")).toBe(false);
-    expect(h.tryAct("p0", { type: "redeal" })).not.toBeNull();
+  it("sets the deadline from the deal time, snapped to 15s steps", () => {
+    const h = harness(4, { guessSeconds: 30 });
+    expect(h.state.guessDeadline).toBe(h.now + 30_000);
+    expect(plugin.deadline!(h.state)).toBe(h.now + 30_000);
+    for (const p of [...ids(4), null]) expect(h.envelope(p).deadline).toBe(h.now + 30_000);
+    expect(harness(4, { guessSeconds: 20 }).state.settings.guessSeconds).toBe(15);
+    expect(harness(4, { guessSeconds: 999 }).state.settings.guessSeconds).toBe(300);
   });
 
-  it("redeal reshuffles the round without scoring", () => {
-    const h = harness(6, { rounds: 3 });
-    craft(h, ["raja", "mantri", "sipahi", "chor", "rani", "sainik"]);
-    h.act("p0", { type: "redeal" });
+  it("nothing fires 1 ms early; at the deadline the round is voided", () => {
+    const h = harness(5, { rounds: 3 });
+    craft(h, ["raja", "mantri", "sipahi", "chor", "rani"]);
+    expect(h.advanceTime(89_999)).toBe(false);
+    expect(h.state.phase).toBe("guess");
+    expect(h.advanceTime(1)).toBe(true);
     const s = h.state;
-    expect(s.phase).toBe("guess");
+    expect(s.phase).toBe("reveal");
     expect(s.round).toBe(1);
-    expect(s.redeals).toBe(1);
-    expect(s.history).toEqual([]);
-    expect(Object.values(s.totals).every((t) => t === 0)).toBe(true);
-    expect(Object.values(s.roles).sort()).toEqual(ROLE_ORDER.slice(0, 6).slice().sort());
-    expect(s.guesser).toBe(holderOf(s.roles, "mantri"));
-    expect(s.raja).toBe(holderOf(s.roles, "raja"));
-    expect(h.view("p3").redeals).toBe(1);
-    expect(plugin.activePlayers(s)).toEqual([s.guesser]);
+    expect(s.guessDeadline).toBeNull();
+    expect(plugin.deadline!(s)).toBeNull();
+    expect(s.history).toHaveLength(1);
+    const r = s.history[0];
+    expect(r).toEqual({
+      round: 1,
+      roles: { p0: "raja", p1: "mantri", p2: "sipahi", p3: "chor", p4: "rani" },
+      guesser: "p1",
+      accused: null,
+      chor: "p3",
+      correct: false,
+      voided: true,
+      points: { p0: 0, p1: 0, p2: 0, p3: 0, p4: 0 },
+    });
+    expect(s.totals).toEqual({ p0: 0, p1: 0, p2: 0, p3: 0, p4: 0 });
+    for (const p of [...ids(5), null]) {
+      const v = h.view(p);
+      expect(v.roles).toEqual(s.roles);
+      expect(v.hiddenPlayers).toEqual([]);
+      expect(v.lastResult).toEqual(r);
+      expect(v.guessDeadline).toBeNull();
+    }
+    expect(plugin.activePlayers(s)).toEqual([]);
+    expect(h.legal("p1")).toEqual([]);
+    expect(h.tryAct("p1", { type: "guess", target: "p3" })).not.toBeNull();
+    expect(h.legal("p0")).toEqual([{ type: "nextRound" }]);
+  });
+
+  it("a voided round keeps earlier totals and counts as a round; the next deal gets a fresh deadline", () => {
+    const h = harness(4, { rounds: 2, guessSeconds: 15 });
+    craft(h, ["raja", "mantri", "sipahi", "chor"]);
+    h.act("p1", { type: "guess", target: "p3" }); // correct
+    expect(h.state.totals).toEqual({ p0: 1000, p1: 800, p2: 500, p3: 0 });
+    expect(h.advanceTime(10 * 60_000)).toBe(false); // no timer outside the guess
+    h.act("p0", { type: "nextRound" });
+    expect(h.state.round).toBe(2);
+    expect(h.state.guessDeadline).toBe(h.now + 15_000);
+    expect(h.advanceTime(15_000)).toBe(true);
+    expect(h.state.totals).toEqual({ p0: 1000, p1: 800, p2: 500, p3: 0 });
+    expect(h.state.history.map((x) => x.voided)).toEqual([false, true]);
+    expect(h.view("p2").isLastRound).toBe(true);
+    h.act("p0", { type: "nextRound" });
+    expect(h.match.over).toBe(true);
+    expect(plugin.scores(h.state).map((l) => [l.playerId, l.score, l.rank])).toEqual([
+      ["p0", 1000, 1],
+      ["p1", 800, 2],
+      ["p2", 500, 3],
+      ["p3", 0, 4],
+    ]);
+  });
+
+  it("a guess in time clears the deadline", () => {
+    const h = harness(4);
+    craft(h, ["raja", "mantri", "sipahi", "chor"]);
+    h.advanceTime(89_000);
+    h.act("p1", { type: "guess", target: "p2" });
+    expect(h.state.guessDeadline).toBeNull();
+    expect(h.advanceTime(60_000)).toBe(false);
+    expect(h.state.history[0].voided).toBe(false);
+  });
+
+  it("the host gains nothing from a timeout, whatever their role", () => {
+    for (const role of ["raja", "sipahi", "chor"] as Role[]) {
+      const h = harness(4);
+      const rest = (["raja", "sipahi", "chor"] as Role[]).filter((r) => r !== role);
+      craft(h, [role, "mantri", ...rest]);
+      h.advanceTime(90_000);
+      expect(h.state.history[0].points.p0).toBe(0);
+      expect(h.state.totals.p0).toBe(0);
+    }
   });
 });
 
@@ -471,7 +555,7 @@ describe("reveal phase", () => {
       expect(h.tryAct(p, { type: "nextRound" })).not.toBeNull();
     }
     expect(h.tryAct("p3", { type: "guess", target: "p1" })).not.toBeNull();
-    expect(h.tryAct("p0", { type: "redeal" })).not.toBeNull();
+    expect(h.tryAct("p0", { type: "@timeout" })).not.toBeNull();
   });
 
   it("revealRaja off: the Raja becomes public after the guess", () => {
@@ -615,7 +699,7 @@ describe("viewFor / legal never leak hidden roles", () => {
         // also with a non-default host
         expectNoHiddenRoleDependence(s, "p2", "p2");
         h.act(s.guesser, { type: "guess", target: expectedHidden(s)[seed % expectedHidden(s).length] });
-        // after a redeal-free guess everything is public; next round re-hides
+        // after the guess everything is public; next round re-hides
         h.act("p0", { type: "nextRound" });
       }
     }
@@ -656,11 +740,31 @@ describe("viewFor / legal never leak hidden roles", () => {
     expect(Object.keys(v.roles).sort()).toEqual(ids(7).sort());
   });
 
-  it("after a redeal the views still hide the new roles", () => {
+  it("after a voided round the next deal is hidden again", () => {
     const h = harness(6, { revealRaja: false });
-    craft(h, ["raja", "chor", "mantri", "sipahi", "rani", "sainik"]); // host p0 not guesser
-    h.act("p0", { type: "redeal" });
+    craft(h, ["raja", "chor", "mantri", "sipahi", "rani", "sainik"]);
+    expect(h.advanceTime(90_000)).toBe(true);
+    h.act("p0", { type: "nextRound" });
+    expect(h.state.phase).toBe("guess");
     for (const viewer of [...ids(6), null]) expectNoHiddenRoleDependence(h.state, viewer);
+  });
+
+  it("a non-default host (p2) runs the rounds through the harness", () => {
+    const h = createHarness<State, Action, View>(plugin, { players: 4, seed: 5, host: "p2", settings: { rounds: 2 } });
+    craft(h, ["raja", "sipahi", "chor", "mantri"]); // guesser p3, host p2
+    expect(h.legal("p2")).toEqual([]);
+    h.act("p3", { type: "guess", target: "p2" });
+    expect(h.legal("p0")).toEqual([]);
+    expect(h.tryAct("p0", { type: "nextRound" })).not.toBeNull();
+    expect(h.legal("p2")).toEqual([{ type: "nextRound" }]);
+    expect(h.envelope("p2").legal).toEqual([{ type: "nextRound" }]);
+    h.act("p2", { type: "nextRound" });
+    expect(h.state.round).toBe(2);
+    expect(h.state.phase).toBe("guess");
+    expectNoHiddenRoleDependence(h.state, "p2", "p2");
+    h.act(h.state.guesser, { type: "guess", target: expectedHidden(h.state)[0] });
+    h.act("p2", { type: "nextRound" });
+    expect(h.match.over).toBe(true);
   });
 });
 
@@ -696,9 +800,10 @@ describe("bots", () => {
     { guesser: "sipahi", revealRaja: false, wrongGuess: "zero", pointsChor: 250 },
     { rounds: 1 },
     { rounds: 20 },
+    { guessSeconds: 0 },
   ];
 
-  it.each([4, 6, 8])("bots finish full games with %i players; every round is scored per the rules", (n) => {
+  it.each([4, 5, 6, 7, 8])("bots finish full games with %i players; every round is scored per the rules", (n) => {
     for (const settings of combos) {
       for (const seed of [1, 2, 3]) {
         const { match } = simulateGame(plugin, { players: n, seed, settings: settings as Partial<SettingsValues> });
@@ -713,8 +818,10 @@ describe("bots", () => {
           expect(Object.values(r.roles).sort()).toEqual(ROLE_ORDER.slice(0, n).slice().sort());
           expect(r.roles[r.guesser]).toBe(cfg.guesser);
           expect(r.roles[r.chor]).toBe("chor");
+          expect(r.voided).toBe(false);
+          expect(r.accused).not.toBeNull();
           expect(r.accused).not.toBe(r.guesser);
-          if (cfg.revealRaja) expect(r.roles[r.accused]).not.toBe("raja");
+          if (cfg.revealRaja) expect(r.roles[r.accused!]).not.toBe("raja");
           expect(r.correct).toBe(r.accused === r.chor);
           expect(r.points).toEqual(expectedRoundPoints(cfg, r));
           for (const p of ids(n)) sums[p] += r.points[p];

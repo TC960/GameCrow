@@ -10,12 +10,12 @@ import {
   BigStatus,
   Button,
   ChoiceList,
+  Countdown,
   GameScreen,
   HoldToReveal,
   PlayerStrip,
   RoleCard,
   Scoreboard,
-  Sheet,
   TurnIndicator,
   stripPlayers,
   type GameUIProps,
@@ -25,20 +25,17 @@ import { legalOfType, type PlayerId } from "../../engine";
 import type { Action, Role, RoleInfo, RoundResult, View } from "./types";
 import "./ui.css";
 
-export default function RajaMantriUI({ view, me, players, legal, active, scores, act, pending }: GameUIProps<View, Action>) {
+export default function RajaMantriUI({ view, me, players, legal, active, scores, act, pending, deadline }: GameUIProps<View, Action>) {
   const [target, setTarget] = useState<PlayerId | null>(null);
-  const [redealOpen, setRedealOpen] = useState(false);
   const width = useAppWidth();
 
-  // A new deal (next round or re-deal) clears the pending accusation.
-  const dealKey = `${view.round}:${view.redeals}:${view.phase}`;
+  // A new deal (next round) clears the pending accusation.
+  const dealKey = `${view.round}:${view.phase}`;
   useEffect(() => {
     setTarget(null);
-    setRedealOpen(false);
   }, [dealKey]);
 
   const targets = legalOfType(legal, "guess").map((a) => a.target);
-  const canRedeal = legalOfType(legal, "redeal").length > 0;
   const canNext = legalOfType(legal, "nextRound").length > 0;
   const chosen = target !== null && targets.includes(target) ? target : null;
 
@@ -68,7 +65,6 @@ export default function RajaMantriUI({ view, me, players, legal, active, scores,
   const roundLabel = (
     <div className="g-rajamantri-round gc-label">
       Round {view.round} of {view.totalRounds}
-      {view.redeals > 0 && ` · re-dealt ${view.redeals}×`}
     </div>
   );
 
@@ -147,15 +143,16 @@ export default function RajaMantriUI({ view, me, players, legal, active, scores,
 
         {view.amGuesser && myRoleCard}
         <RoleChips roles={view.roleTable} />
-        {canRedeal && (
-          <Button variant="ghost" size="sm" className="g-rajamantri-redeal" onClick={() => setRedealOpen(true)}>
-            ↻ Re-deal this round…
-          </Button>
-        )}
       </div>
     );
     bottom = (
       <>
+        {deadline !== null && (
+          <div className="g-rajamantri-timer gc-center gc-small">
+            <Countdown deadline={deadline} label={view.amGuesser ? "Time to accuse:" : "Time left:"} />
+            <span className="gc-muted"> · no guess in time = round void</span>
+          </div>
+        )}
         <TurnIndicator
           active={active}
           me={me}
@@ -223,30 +220,7 @@ export default function RajaMantriUI({ view, me, players, legal, active, scores,
     );
   }
 
-  return (
-    <>
-      <GameScreen top={strip} board={board} bottom={bottom} />
-      <Sheet open={redealOpen && canRedeal} onClose={() => setRedealOpen(false)} title="Re-deal this round?">
-        <div className="gc-stack">
-          <p className="gc-muted" style={{ margin: 0 }}>
-            Use this only if {guesserName} is away or stuck. Everyone gets new roles for round {view.round}; nobody
-            scores.
-          </p>
-          <Button
-            variant="danger"
-            block
-            disabled={pending}
-            onClick={() => act({ type: "redeal" }).then(() => setRedealOpen(false))}
-          >
-            Re-deal roles
-          </Button>
-          <Button variant="ghost" block onClick={() => setRedealOpen(false)}>
-            Cancel
-          </Button>
-        </div>
-      </Sheet>
-    </>
-  );
+  return <GameScreen top={strip} board={board} bottom={bottom} />;
 }
 
 /** Width of the phone-width app column (it never grows past 480px). */
@@ -372,21 +346,28 @@ function ResultBlock({
     .sort((a, b) => order.indexOf(result.roles[a]) - order.indexOf(result.roles[b]));
   const tags = (id: PlayerId) => {
     const t: string[] = [];
+    if (result.voided) {
+      if (id === result.guesser) t.push("⏰ Ran out of time");
+      if (id === result.chor) t.push("🦹 Chor");
+      return t.join(" · ");
+    }
     if (id === result.guesser) t.push(result.correct ? "🔍 Guessed right" : "🔍 Guessed wrong");
     if (id === result.accused && !result.correct) t.push("👉 Wrongly accused");
     if (id === result.chor) t.push(result.correct ? "🚨 Caught" : "😈 Got away");
     return t.join(" · ");
   };
-  const swap = !result.correct && view.settings.wrongGuess === "swap";
+  const swap = !result.correct && !result.voided && view.settings.wrongGuess === "swap";
   return (
     <div className="g-rajamantri-section">
       {over && <span className="gc-label">Last round ({result.round})</span>}
       <div className="g-rajamantri-headline">
-        <BigStatus>{result.correct ? `✅ ${g} caught the Chor!` : `❌ Wrong guess!`}</BigStatus>
+        <BigStatus>{result.voided ? "⏰ Time's up! Round void" : result.correct ? `✅ ${g} caught the Chor!` : `❌ Wrong guess!`}</BigStatus>
         <span className="g-rajamantri-sub">
-          {result.correct
+          {result.voided
+            ? `${g} (${gRole.emoji} ${gRole.name}) didn't accuse in time. The 🦹 Chor was ${nameIn(result.chor)}. Nobody scores this round.`
+            : result.correct
             ? `${g} (${gRole.emoji} ${gRole.name}) accused ${nameIn(result.chor)}, the 🦹 Chor.`
-            : `${g} (${gRole.emoji} ${gRole.name}) accused ${nameIn(result.accused)}. The 🦹 Chor was ${nameIn(result.chor)}${
+            : `${g} (${gRole.emoji} ${gRole.name}) accused ${result.accused ? nameIn(result.accused) : "nobody"}. The 🦹 Chor was ${nameIn(result.chor)}${
                 swap ? `, who takes the ${gRole.name}'s ${gRole.points} points.` : "."
               }`}
         </span>

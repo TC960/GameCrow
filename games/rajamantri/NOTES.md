@@ -8,6 +8,7 @@
 | `guesser` | Who guesses the Chor | `mantri` | `mantri`, `sipahi` | Which role must find the Chor. That player is revealed to everyone at the start of the round. |
 | `revealRaja` | Raja reveals himself | on | boolean | On: the Raja is public each round and can't be accused. Off: the Raja stays hidden and is a possible (wrong) target. |
 | `wrongGuess` | Wrong guess | `swap` | `swap`, `zero` | `swap`: the Chor scores the guesser's role points and the guesser scores 0. `zero`: the guesser scores 0 and the Chor scores the Chor's points as usual. |
+| `guessSeconds` | Guess timer (seconds) | 90 | 0–300, step 15 (0 = off) | Time the guesser has to accuse. When it runs out the round is voided: nobody scores, all roles are revealed, the round still counts, and the host continues with "Next round". |
 | `pointsRaja` | 👑 Raja points | 1000 | 0–5000, step 50 | Raja's score each round. |
 | `pointsMantri` | 🎩 Mantri points | 800 | 0–5000, step 50 | Mantri's score each round. |
 | `pointsSipahi` | 🛡️ Sipahi points | 500 | 0–5000, step 50 | Sipahi's score each round. |
@@ -34,9 +35,15 @@
   guesser scores 0, even if `pointsChor` is set above 0 (it is not an exchange). The wrongly accused player and
   everyone else score their own role's points.
 - **Guesser is Sipahi:** same flow; the Mantri is then an ordinary hidden player and scores 800 either way.
-- **Absent guesser:** the contract says never to block forever on a non-host. The host (when not the guesser
-  themself) has `redeal` during the guess: it reshuffles roles for the same round, nobody scores, nothing is
-  revealed, and `redeals` counts up publicly. It picks no outcome for anyone. Bots never re-deal.
+- **Absent or stuck guesser:** the contract says never to block forever on a non-host. Each deal stores
+  `guessDeadline = now + guessSeconds·1000` (null when 0) and `deadline()` returns it during the guess. When the
+  engine fires `@timeout`, the round is **voided**: a `RoundResult` with `voided: true`, `accused: null`,
+  `correct: false` and 0 points for everyone is added to history, all roles are revealed, and the host's normal
+  "Next round" continues. A voided round counts toward `rounds`. Nobody chooses the outcome and nothing depends on
+  anyone's secret role. With the timer off (0), the shell's "End game" is the escape hatch. (An earlier host-only
+  `redeal` action was removed: the host saw their new role after each deal, so they could re-roll a better one.)
+- **The host has no actions during the guess** (unless they are the guesser), so host status never leaks or
+  shapes anything.
 - **Round history** (`View.history`) includes earlier rounds' full roles and points: they were revealed and roles
   are reshuffled each round, so this is public. Leak checks should look at the current round's mapping.
 - **Scores:** cumulative totals, ranked with `rankScores` (higher is better, ties share a rank).

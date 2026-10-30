@@ -30,4 +30,4 @@
   background: var(--surface-2); border: 1px solid var(--border);
   font-size: 0.82rem; white-space: nowrap; font-variant-numeric: tabular-nums;
 }
-.g-rajamantri-redeal { align-self: center; color: var(--muted); }
+.g-rajamantri-timer { display: flex; flex-wrap: wrap; justify-content: center; align-items: baseline; gap: 2px; }

@@ -78,6 +78,8 @@ export type Settings = {
   revealRaja: boolean;
   /** Default "swap". */
   wrongGuess: WrongGuessRule;
+  /** Seconds the guesser has to accuse (0 = no timer, max 300, step 15; default 90). When it runs out the round is voided. */
+  guessSeconds: number;
   /** Points per role (0-5000, step 50). */
   pointsRaja: number;
   pointsMantri: number;
@@ -91,7 +93,8 @@ export type Settings = {
 
 /**
  * "guess": roles are dealt; the guesser must accuse one hidden player.
- * "reveal": all roles and the round's points are shown; waiting for the host's "nextRound".
+ * "reveal": all roles and the round's points are shown (or the round was voided by the guess timer);
+ *   waiting for the host's "nextRound".
  * "over": after the host's "nextRound" on the last round's reveal (the last round stays visible).
  */
 export type Phase = "guess" | "reveal" | "over";
@@ -102,11 +105,14 @@ export type RoundResult = {
   /** Everyone's role in that round. */
   roles: Record<PlayerId, Role>;
   guesser: PlayerId;
-  /** Who the guesser accused. */
-  accused: PlayerId;
+  /** Who the guesser accused (null when the round was voided). */
+  accused: PlayerId | null;
   /** Who was actually the Chor. */
   chor: PlayerId;
+  /** false when the guess was wrong or the round was voided. */
   correct: boolean;
+  /** true when the guess timer ran out: nobody scored (every points entry is 0). The round still counts. */
+  voided: boolean;
   /** Points each player scored in that round. */
   points: Record<PlayerId, number>;
 };
@@ -128,15 +134,15 @@ export interface State {
   history: RoundResult[];
   /** Cumulative points. */
   totals: Record<PlayerId, number>;
-  /** How many times the host re-dealt a round without scoring (skip for an absent guesser). */
-  redeals: number;
+  /** Epoch ms when the guess times out (null when guessSeconds is 0 or outside "guess"). */
+  guessDeadline: number | null;
 }
 
 export type Action =
   /** Guesser only, in "guess": accuse a player whose role is still hidden. */
   | { type: "guess"; target: PlayerId }
-  /** Host only (when the host is not the guesser), in "guess": reshuffle roles for this round, nobody scores. */
-  | { type: "redeal" }
+  /** Engine only (SYSTEM_ACTOR) when the guess timer runs out: the round is voided, nobody scores. */
+  | { type: "@timeout" }
   /** Host only, in "reveal": start the next round (or finish the game after the last round). */
   | { type: "nextRound" };
 
@@ -181,7 +187,7 @@ export interface View {
   totals: Record<PlayerId, number>;
   /** Roles in play this match, in ROLE_ORDER, with their points. */
   roleTable: RoleInfo[];
-  /** Times the host re-dealt (public). */
-  redeals: number;
+  /** Epoch ms when the guess times out (also props.deadline); null when there is no timer or outside "guess". */
+  guessDeadline: number | null;
   settings: Settings;
 }

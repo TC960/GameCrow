@@ -4,7 +4,7 @@
  * players. A correct guess scores everyone their role's points; a wrong one hands the guesser's
  * points to the Chor (house rule). The host starts each next round. Highest total wins.
  */
-import { check, defineGame, rankScores, type PlayerId, type Rng, type SettingField } from "../../engine";
+import { SYSTEM_ACTOR, check, defineGame, rankScores, type PlayerId, type Rng, type SettingField } from "../../engine";
 import {
   DEFAULT_ROLE_POINTS,
   ROLE_EMOJI,
@@ -84,6 +84,17 @@ const rajamantri = defineGame<State, Action, View, Settings>({
         { value: "zero", label: "Guesser scores 0, Chor scores as usual" },
       ],
     },
+    {
+      type: "number",
+      key: "guessSeconds",
+      label: "Guess timer (seconds)",
+      help: "If the guesser doesn't accuse in time, the round is voided: nobody scores. 0 = no timer.",
+      default: 90,
+      min: 0,
+      max: 300,
+      step: 15,
+      group: "Game",
+    },
     pointsField("raja", "Points"),
     pointsField("mantri", "Points"),
     pointsField("sipahi", "Points"),
@@ -94,7 +105,7 @@ const rajamantri = defineGame<State, Action, View, Settings>({
     pointsField("pandit", EXTRA_GROUP, "Added with 8 players."),
   ],
 
-  setup(players, settings, { rng }) {
+  setup(players, settings, { rng, now }) {
     const order = players.map((p) => p.id);
     return {
       order,
@@ -102,8 +113,7 @@ const rajamantri = defineGame<State, Action, View, Settings>({
       round: 1,
       history: [],
       totals: Object.fromEntries(order.map((id) => [id, 0])),
-      redeals: 0,
-      ...dealRound(order, settings, rng),
+      ...dealRound(order, settings, rng, now),
     };
   },
 
@@ -111,13 +121,13 @@ const rajamantri = defineGame<State, Action, View, Settings>({
     if (!state.order.includes(actor.id)) return [];
     if (state.phase === "guess") {
       if (actor.id === state.guesser) return hiddenPlayers(state).map((target) => ({ type: "guess", target }));
-      return actor.isHost ? [{ type: "redeal" }] : [];
+      return [];
     }
     if (state.phase === "reveal" && actor.isHost) return [{ type: "nextRound" }];
     return [];
   },
 
-  reduce(state, action, { actor, rng }) {
+  reduce(state, action, { actor, rng, now }) {
     switch (action.type) {
       case "guess": {
         check(state.phase === "guess", "It's not time to guess");
@@ -125,19 +135,20 @@ const rajamantri = defineGame<State, Action, View, Settings>({
         check(hiddenPlayers(state).includes(action.target), "Pick one of the hidden players");
         const result = scoreRound(state, action.target);
         const totals = Object.fromEntries(state.order.map((id) => [id, state.totals[id] + result.points[id]]));
-        return { ...state, phase: "reveal", history: [...state.history, result], totals };
+        return { ...state, phase: "reveal", history: [...state.history, result], totals, guessDeadline: null };
       }
-      case "redeal": {
-        check(state.phase === "guess", "You can only re-deal before the guess");
-        check(actor.isHost, "Only the host can re-deal");
-        check(actor.id !== state.guesser, "You're the guesser: make your guess");
-        return { ...state, ...dealRound(state.order, state.settings, rng), redeals: state.redeals + 1 };
+      case "@timeout": {
+        // Void the round: nobody scores, every role is revealed, the host continues as usual.
+        check(actor.id === SYSTEM_ACTOR.id, "Only the timer can do that");
+        check(state.phase === "guess" && state.guessDeadline !== null && now >= state.guessDeadline, "Time isn't up yet");
+        const result = voidRound(state);
+        return { ...state, phase: "reveal", history: [...state.history, result], guessDeadline: null };
       }
       case "nextRound": {
         check(state.phase === "reveal", "The round isn't finished yet");
         check(actor.isHost, "Only the host can start the next round");
         if (state.round >= state.settings.rounds) return { ...state, phase: "over" };
-        return { ...state, round: state.round + 1, ...dealRound(state.order, state.settings, rng) };
+        return { ...state, round: state.round + 1, ...dealRound(state.order, state.settings, rng, now) };
       }
     }
   },
@@ -173,7 +184,7 @@ const rajamantri = defineGame<State, Action, View, Settings>({
         emoji: ROLE_EMOJI[role],
         points: rolePoints(state.settings, role),
       })),
-      redeals: state.redeals,
+      guessDeadline: state.phase === "guess" ? state.guessDeadline : null,
       settings: state.settings,
     };
   },
@@ -182,11 +193,13 @@ const rajamantri = defineGame<State, Action, View, Settings>({
     return state.phase === "guess" ? [state.guesser] : [];
   },
 
+  deadline: (state) => (state.phase === "guess" ? state.guessDeadline : null),
+
   isOver: (state) => state.phase === "over",
   scores: (state) => rankScores(state.totals),
 
   botAction(_view, legal, rng) {
-    // Guess at random among the hidden players; never re-deal.
+    // Guess at random among the hidden players.
     const guesses = legal.filter((a) => a.type === "guess");
     return rng.pick(guesses.length ? guesses : legal);
   },
@@ -209,10 +222,17 @@ function dealRound(
   order: PlayerId[],
   settings: Settings,
   rng: Rng,
-): Pick<State, "roles" | "guesser" | "raja" | "phase"> {
+  now: number,
+): Pick<State, "roles" | "guesser" | "raja" | "phase" | "guessDeadline"> {
   const deck = rng.shuffle(rolesInPlay(order.length));
   const roles = Object.fromEntries(order.map((id, i) => [id, deck[i]])) as Record<PlayerId, Role>;
-  return { roles, guesser: holderOf(roles, settings.guesser), raja: holderOf(roles, "raja"), phase: "guess" };
+  return {
+    roles,
+    guesser: holderOf(roles, settings.guesser),
+    raja: holderOf(roles, "raja"),
+    phase: "guess",
+    guessDeadline: settings.guessSeconds > 0 ? now + settings.guessSeconds * 1000 : null,
+  };
 }
 
 /** Players whose role is not public during the guess (never filtered by anyone's secret knowledge). */
@@ -229,7 +249,14 @@ function scoreRound(state: State, accused: PlayerId): RoundResult {
     points[guesser] = 0;
     if (settings.wrongGuess === "swap") points[chor] = rolePoints(settings, settings.guesser);
   }
-  return { round: state.round, roles, guesser, accused, chor, correct, points };
+  return { round: state.round, roles, guesser, accused, chor, correct, voided: false, points };
+}
+
+/** The guess timer ran out: same round record, nobody scores. */
+function voidRound(state: State): RoundResult {
+  const { roles, guesser } = state;
+  const points = Object.fromEntries(state.order.map((id) => [id, 0]));
+  return { round: state.round, roles, guesser, accused: null, chor: holderOf(roles, "chor"), correct: false, voided: true, points };
 }
 
 export default rajamantri;
