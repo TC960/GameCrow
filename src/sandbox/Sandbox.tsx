@@ -47,7 +47,11 @@ function botStep(plugin: AnyGamePlugin, match: MatchRecord, skip: PlayerId | nul
   for (const id of order) {
     if (id === skip) continue;
     let action = chooseBotAction(plugin, match, id);
-    if (!action && id === HOST) action = (plugin.legalActions(match.state, { id, isHost: true }) as GameAction[])[0] ?? null;
+    // The host seat only takes host-only actions when the game is waiting on nobody else
+    // (e.g. "next round"), never skip/redeal-style actions while a player is still deciding.
+    if (!action && id === HOST && active.length === 0) {
+      action = (plugin.legalActions(match.state, { id, isHost: true }) as GameAction[])[0] ?? null;
+    }
     if (!action) continue;
     return applyAction(plugin, match, { id, isHost: id === HOST }, action, Date.now());
   }

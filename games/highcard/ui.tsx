@@ -61,7 +61,7 @@ export default function HighCardUI({ view, me, players, legal, active, act, pend
           {view.phase === "over" ? (
             <BigStatus>Game over</BigStatus>
           ) : (
-            <TurnIndicator active={active} me={me} players={players} text={view.phase === "reveal" && !canNext ? "Waiting for the host" : undefined} />
+            <TurnIndicator active={active} me={me} players={players} text={view.phase === "reveal" ? (canNext ? "Start the next round" : "Waiting for the host") : undefined} />
           )}
           {me && (
             <Hand

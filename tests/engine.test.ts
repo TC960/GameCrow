@@ -171,6 +171,8 @@ describe("example game: highcard", () => {
     expect(h.legal("p0")).toEqual([{ type: "nextRound" }]);
     h.act("p0", { type: "nextRound" });
     expect(h.match.over).toBe(true);
+    // Regression: the over view must not expose the reset (null) picks as cards.
+    expect((h.view("p1") as { revealed: unknown }).revealed).toBeNull();
     expect(h.envelope("p0").scores).toHaveLength(2);
   });
 });

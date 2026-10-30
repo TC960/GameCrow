@@ -99,7 +99,8 @@ const highcard = defineGame<State, Action, View, Settings>({
   },
 
   viewFor(state, playerId) {
-    const showAll = state.phase !== "pick";
+    // Picks are public only while the round is revealed (they are reset when the next round starts).
+    const showAll = state.phase === "reveal";
     return {
       phase: state.phase,
       round: state.round,

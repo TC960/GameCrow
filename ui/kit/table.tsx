@@ -1,5 +1,5 @@
 /** Table area, trick layout, opponents strip, turn indicator and scoreboard. */
-import type { ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import type { Card } from "../../engine/cards";
 import type { PlayerId, ScoreLine } from "../../engine/types";
 import { Avatar } from "./basics";
@@ -39,8 +39,27 @@ export interface TrickPlay {
   card: Card;
 }
 
-/** Cards on the table placed by seat (me at the bottom). Highlights `winner` when the trick is done.
- * Card size defaults by player count (md up to 4, sm up to 6, xs beyond). */
+const CARD_W: Record<CardSize, number> = { xs: 34, sm: 46, md: 60, lg: 78 };
+const NAME_H = 18;
+
+/** Largest card size (≤ `max`) whose oval layout fits inside a w×h box. */
+function fitSize(w: number, h: number, n: number, max: CardSize): CardSize {
+  const order: CardSize[] = ["lg", "md", "sm", "xs"];
+  for (const s of order.slice(order.indexOf(max))) {
+    const cw = CARD_W[s], ch = cw * 1.42 + NAME_H;
+    // Vertical spread between the top and bottom seats, horizontal between left/right seats.
+    const needH = ch + (n > 1 ? ch * 1.15 : 0);
+    const needW = cw + (n > 2 ? cw * 2.2 : 0);
+    if (needH <= h && needW <= w) return s;
+  }
+  return "xs";
+}
+
+/**
+ * Cards on the table placed by seat (me at the bottom). Highlights `winner` when the trick is done.
+ * Card size fits the available space (and player count) unless `size` is given; cards never spill
+ * outside the table area.
+ */
 export function Trick({
   plays,
   players,
@@ -54,21 +73,45 @@ export function Trick({
   winner?: PlayerId | null;
   size?: CardSize;
 }) {
+  const ref = useRef<HTMLDivElement>(null);
+  const [box, setBox] = useState({ w: 320, h: 220 });
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const ro = new ResizeObserver(() => setBox({ w: el.clientWidth, h: el.clientHeight }));
+    ro.observe(el);
+    setBox({ w: el.clientWidth, h: el.clientHeight });
+    return () => ro.disconnect();
+  }, []);
+  const n = players.length;
+  const maxSize: CardSize = n <= 4 ? "md" : n <= 6 ? "sm" : "xs";
+  const cardSize = size ?? fitSize(box.w, box.h, n, maxSize);
+  const cw = CARD_W[cardSize], ch = cw * 1.42 + NAME_H;
+  // Keep every slot's centre far enough from the edges that the whole card + name stay inside.
+  const rx = Math.max(0, 50 - ((cw / 2 + 4) / Math.max(box.w, 1)) * 100);
+  const ry = Math.max(0, 50 - ((ch / 2 + 4) / Math.max(box.h, 1)) * 100);
   const pos = seatPositions(players, me);
-  const cardSize: CardSize = size ?? (players.length <= 4 ? "md" : players.length <= 6 ? "sm" : "xs");
+  const place = (id: PlayerId) => {
+    const p = pos[id] ?? { x: 50, y: 50 };
+    // seatPositions uses radii 38/33; rescale them to the radii that fit.
+    return { x: 50 + ((p.x - 50) / 38) * rx, y: 50 + ((p.y - 50) / 33) * ry };
+  };
   const names = Object.fromEntries(players.map((p) => [p.id, p.id === me ? "You" : p.name]));
   return (
-    <div className="gc-trick" aria-label="Cards on the table">
-      {plays.map((p, i) => (
-        <div
-          key={p.playerId}
-          className={`gc-trick-slot ${winner === p.playerId ? "gc-trick-slot--win" : ""}`}
-          style={{ left: `${pos[p.playerId]?.x ?? 50}%`, top: `${pos[p.playerId]?.y ?? 50}%`, zIndex: i + 1 }}
-        >
-          <PlayingCard card={p.card} size={cardSize} />
-          <span className="gc-trick-name">{names[p.playerId] ?? "?"}</span>
-        </div>
-      ))}
+    <div className="gc-trick" ref={ref} aria-label="Cards on the table">
+      {plays.map((p, i) => {
+        const at = place(p.playerId);
+        return (
+          <div
+            key={p.playerId}
+            className={`gc-trick-slot ${winner === p.playerId ? "gc-trick-slot--win" : ""}`}
+            style={{ left: `${at.x}%`, top: `${at.y}%`, zIndex: i + 1 }}
+          >
+            <PlayingCard card={p.card} size={cardSize} />
+            <span className="gc-trick-name">{names[p.playerId] ?? "?"}</span>
+          </div>
+        );
+      })}
     </div>
   );
 }

@@ -194,6 +194,8 @@ export function simulateGame(
 function pickHostAware(plugin: AnyGamePlugin, match: MatchRecord, id: PlayerId): GameAction | null {
   const asPlayer = chooseBotAction(plugin, match, id);
   if (asPlayer) return asPlayer;
+  // Host-only actions (next round, skips) only when the game is waiting on nobody.
+  if (plugin.activePlayers(match.state).length > 0) return null;
   const hostLegal = plugin.legalActions(match.state, { id, isHost: true }) as GameAction[];
   return hostLegal[0] ?? null;
 }
