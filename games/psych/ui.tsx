@@ -91,9 +91,11 @@ export default function PsychUI({ view, me, players, legal, active, isHost, scor
           <Banner tone="accent">
             {view.writeTruth
               ? "You're the subject: write the TRUE answer. Others score by spotting it."
-              : view.kind === "trivia" && view.truth === "fact"
+              : view.truth === "fact"
                 ? "Write a fake answer that sounds real. You score when others pick it."
-                : "Write the answer you think others will pick. You score for every vote."}
+                : view.truth === "subject"
+                  ? `${view.subjectName ?? "The subject"} writes the truth. Write a fake that sounds like them: you score when others pick it.`
+                  : "There's no right answer: write the one others will pick. You score for every vote."}
           </Banner>
         ) : (
           <BigStatus>
@@ -103,21 +105,32 @@ export default function PsychUI({ view, me, players, legal, active, isHost, scor
       </div>
     );
   } else if (phase === "vote" && view.options) {
+    const canVote = votable.size > 0;
     const voteChoices: Choice[] = view.options.map((o) => ({
       value: o.id,
       label: <span className="g-psych-opt">{o.text}</span>,
-      sub: o.isMine ? "your answer" : o.id === view.myVote ? "your vote" : undefined,
+      sub: o.isMine ? "your answer" : undefined,
       disabled: pending || !votable.has(o.id),
     }));
-    const selected = view.myVote ?? pick;
     body = (
       <div className="gc-stack">
         <div className="gc-label">
-          {view.myVote ? "Your vote is in" : amVoter ? (view.truth === "none" ? "Pick the best answer" : "Which one is real?") : "The answers"}
+          {canVote ? (view.truth === "none" ? "Pick your favourite" : view.truth === "subject" ? `Which is ${view.subjectName ?? "the subject"}'s real answer?` : "Which one is real?") : view.myVote ? "Your vote is in" : "The answers"}
         </div>
         {me !== null && !amVoter && view.iAmSubject && <Banner>You're the subject, so you don't vote this round. Watch them guess!</Banner>}
-        <ChoiceList label="Answers" options={voteChoices} value={selected} onChange={(v) => !view.myVote && setPick(v)} />
-        {(view.myVote || !amVoter) && <BigStatus>{votesLeft > 0 ? `Waiting for ${plural(votesLeft, "vote")}` : "All votes in!"}</BigStatus>}
+        {canVote ? (
+          <ChoiceList label="Answers" options={voteChoices} value={pick} onChange={setPick} />
+        ) : (
+          <div className="g-psych-optlist" role="list" aria-label="Answers">
+            {view.options.map((o) => (
+              <div key={o.id} role="listitem" className={`g-psych-optcard ${o.id === view.myVote ? "g-psych-optcard--on" : ""}`}>
+                <span className="g-psych-opt">{o.text}</span>
+                {o.id === view.myVote && <span className="g-psych-optnote g-psych-optnote--on">✓ your vote</span>}
+                {o.isMine && <span className="g-psych-optnote">{view.iAmSubject && view.truth === "subject" ? "your truth" : "your answer"}</span>}
+              </div>
+            ))}
+          </div>
+        )}
       </div>
     );
   } else if ((phase === "reveal" || phase === "over") && view.reveal) {
@@ -139,7 +152,8 @@ export default function PsychUI({ view, me, players, legal, active, isHost, scor
   let status: ReactNode;
   if (phase === "over") status = undefined;
   else if (phase === "reveal") status = canNext ? undefined : "Waiting for the host";
-  else if (phase === "answer") status = canAnswer ? (view.writeTruth ? "Write the truth" : "Your answer") : answersLeft > 0 ? `Waiting for ${plural(answersLeft, "answer")}` : "…";
+  // While typing, the input itself is the call to action: keep the thumb zone small (keyboard!).
+  else if (phase === "answer") status = canAnswer ? undefined : view.myAnswer !== null ? "Answer sent ✓" : answersLeft > 0 ? `Waiting for ${plural(answersLeft, "answer")}` : "…";
   else if (phase === "vote") status = votable.size > 0 ? "Your vote" : votesLeft > 0 ? `Waiting for ${plural(votesLeft, "vote")}` : "…";
 
   const skipButton = canSkip && (
@@ -200,7 +214,7 @@ export default function PsychUI({ view, me, players, legal, active, isHost, scor
         <PlayerStrip
           me={me}
           players={stripPlayers(players, active, (id) => ({
-            sub: `${view.scores[id] ?? 0} pts`,
+            sub: plural(view.scores[id] ?? 0, "pt"),
             badge: badge(id),
             dim: phase === "vote" && !view.voters.includes(id),
           }))}
@@ -275,8 +289,14 @@ function Reveal({
     .map((p) => ({ id: p.id, pts: reveal.roundPoints[p.id] ?? 0 }))
     .sort((a, b) => b.pts - a.pts);
 
+  const myPts = me !== null ? reveal.roundPoints[me] ?? 0 : null;
   return (
     <div className="gc-stack">
+      {myPts !== null && (
+        <div className={`g-psych-you ${myPts > 0 ? "g-psych-you--plus" : ""}`}>
+          {myPts > 0 ? `🎉 You scored +${myPts} this round` : "No points for you this round"}
+        </div>
+      )}
       {reveal.realAnswer !== null && !realOpt && (
         <div className="g-psych-result g-psych-result--real">
           <span className="g-psych-tag g-psych-tag--real">✓ Real answer</span>
@@ -334,7 +354,7 @@ function RevealCard({
   } else {
     tag = <span className="g-psych-tag">✎ {o.authors.length ? names(o.authors) : "?"}</span>;
   }
-  const pts = o.isReal ? (o.voters.length ? `+${view.rules.truthPoints} each` : null) : o.pointsPerAuthor > 0 ? `+${o.pointsPerAuthor}${o.authors.length > 1 ? " each" : ""}` : null;
+  const pts = o.isReal ? (o.voters.length && view.rules.truthPoints > 0 ? `+${view.rules.truthPoints}${o.voters.length > 1 ? " each" : ""}` : null) : o.pointsPerAuthor > 0 ? `+${o.pointsPerAuthor}${o.authors.length > 1 ? " each" : ""}` : null;
   const youPicked = o.voters.some((v) => name(v) === "You");
   const votersLabel = o.isReal ? "Spotted by" : view.truth === "none" ? "Votes" : "Fooled";
   return (

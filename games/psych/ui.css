@@ -78,3 +78,25 @@
 .g-psych-pt--plus strong { color: var(--accent); }
 .g-psych-pt--me { background: var(--surface-2); }
 .g-psych-pt-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 9em; }
+
+/* Read-only option list (after voting, subject, spectators) */
+.g-psych-optlist { display: flex; flex-direction: column; gap: 8px; }
+.g-psych-optcard {
+  min-height: 52px; padding: 10px 14px; border-radius: var(--radius-sm);
+  border: 1px solid var(--border); background: var(--surface);
+  display: flex; flex-direction: column; justify-content: center; gap: 2px;
+}
+.g-psych-optcard--on { border-color: var(--accent); background: var(--accent-soft); box-shadow: 0 0 0 1px var(--accent); }
+.g-psych-optnote { font-size: 0.82rem; color: var(--muted); }
+.g-psych-optnote--on { color: var(--accent); font-weight: 700; }
+
+/* "You scored +N" line at the top of the reveal */
+.g-psych-you { text-align: center; font-weight: 800; font-size: 1.05rem; padding: 8px 12px; border-radius: var(--radius-sm); background: var(--surface-2); color: var(--muted); }
+.g-psych-you--plus { background: var(--accent-soft); color: var(--text); border: 1px solid var(--accent); }
+
+/* Short screens (on-screen keyboard open): keep the prompt readable above the input. */
+@media (max-height: 520px) {
+  .g-psych-board { gap: 8px; }
+  .g-psych-prompt { padding: 10px 12px; }
+  .g-psych-prompt-text { font-size: 1.12rem; }
+}
