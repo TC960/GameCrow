@@ -87,9 +87,13 @@ export function CardBack({ size = "md", count, style }: { size?: CardSize; count
   );
 }
 
-/** Empty dashed card-sized slot (e.g. where the next card in a suit goes). */
-export function CardSlot({ size = "md", label }: { size?: CardSize; label?: string }) {
-  return <div className={`gc-card gc-card--${size} gc-card-slot`} aria-label={label} />;
+/** Empty dashed card-sized slot (e.g. where the next card in a suit goes). `children` shows inside (e.g. "8"). */
+export function CardSlot({ size = "md", label, children }: { size?: CardSize; label?: string; children?: React.ReactNode }) {
+  return (
+    <div className={`gc-card gc-card--${size} gc-card-slot`} aria-label={label} role={label ? "img" : undefined}>
+      {children !== undefined && <span className="gc-card-slot-text">{children}</span>}
+    </div>
+  );
 }
 
 /** Suit chip like "♠ Spades"; `suit` null shows "No trump". */
@@ -126,6 +130,8 @@ export interface HandProps {
   sortable?: boolean;
   /** Keep the given order instead of auto-sorting. */
   unsorted?: boolean;
+  /** Sort Aces below 2 (e.g. Badam Satti). Default false (Ace high). */
+  aceLow?: boolean;
   label?: string;
   disabled?: boolean;
 }
@@ -144,6 +150,7 @@ export function Hand({
   size = "md",
   sortable = true,
   unsorted,
+  aceLow,
   label = "Your hand",
   disabled,
 }: HandProps) {
@@ -154,7 +161,10 @@ export function Hand({
     if (!controlled) setInternal(next);
     onSelect?.(next);
   };
-  const sorted = useMemo(() => (unsorted ? cards : sortCards(cards, prefs.handSort)), [cards, prefs.handSort, unsorted]);
+  const sorted = useMemo(
+    () => (unsorted ? cards : sortCards(cards, prefs.handSort, { aceLow })),
+    [cards, prefs.handSort, unsorted, aceLow],
+  );
   const playableSet = useMemo(() => new Set(playable ?? cards), [playable, cards]);
 
   // Drop selections of cards that left the hand.

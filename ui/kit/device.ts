@@ -144,3 +144,17 @@ export function useDeviceTilt(): Tilt {
 
   return { permission, ...angles, request };
 }
+
+/** true on small phones (width < 400px or height < 720px): pick smaller card sizes. Updates on resize. */
+export function useCompact(): boolean {
+  const query = "(max-width: 399px), (max-height: 719px)";
+  const get = () => typeof window !== "undefined" && window.matchMedia(query).matches;
+  const [compact, setCompact] = useState(get);
+  useEffect(() => {
+    const mq = window.matchMedia(query);
+    const update = () => setCompact(mq.matches);
+    mq.addEventListener("change", update);
+    return () => mq.removeEventListener("change", update);
+  }, []);
+  return compact;
+}

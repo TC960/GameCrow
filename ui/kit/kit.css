@@ -229,7 +229,8 @@ button.gc-card { cursor: pointer; touch-action: manipulation; }
   display: flex; align-items: center; justify-content: center;
 }
 .gc-card-back-count { background: rgba(0,0,0,0.55); color: #fff; font-weight: 800; border-radius: 999px; padding: 0 6px; font-size: calc(var(--w) * 0.28); }
-.gc-card-slot { border: 2px dashed rgba(255,255,255,0.3); background: transparent; box-shadow: none; }
+.gc-card-slot { border: 2px dashed rgba(255,255,255,0.3); background: transparent; box-shadow: none; display: flex; align-items: center; justify-content: center; }
+.gc-card-slot-text { font-weight: 800; font-size: calc(var(--w) * 0.32); opacity: 0.75; color: inherit; }
 
 /* ---------- Hand fan ---------- */
 .gc-hand { position: relative; }
@@ -281,6 +282,10 @@ button.gc-card { cursor: pointer; touch-action: manipulation; }
 .gc-scores th:nth-child(2), .gc-scores td:nth-child(2) { text-align: left; width: 100%; white-space: normal; }
 .gc-scores th { font-size: 0.75rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.05em; }
 .gc-scores tr.gc-scores-me td { background: var(--accent-soft); }
+/* Keep the player name and the Total column visible when per-round columns scroll. */
+.gc-scores th:nth-child(2), .gc-scores td:nth-child(2) { position: sticky; left: 0; background: var(--surface); z-index: 1; min-width: 72px; }
+.gc-scores th:last-child, .gc-scores td:last-child { position: sticky; right: 0; background: var(--surface); z-index: 1; box-shadow: -6px 0 6px -6px rgba(0,0,0,0.4); }
+.gc-scores tr.gc-scores-me td:nth-child(2), .gc-scores tr.gc-scores-me td:last-child { background: color-mix(in srgb, var(--accent) 16%, var(--surface)); }
 .gc-scores-wrap { overflow-x: auto; }
 .gc-rank-1 { color: var(--accent); font-weight: 800; }
 
