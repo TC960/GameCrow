@@ -3,7 +3,7 @@
  * haptics, wake lock, rotate prompt, error toasts, scoreboard, how-to-play, results sheet.
  * Used by the live room (Convex) and the dev sandbox (local engine) alike.
  */
-import { Suspense, useCallback, useEffect, useState, type ReactNode } from "react";
+import { Component, Suspense, useCallback, useEffect, useState, type ReactNode } from "react";
 import type { GameAction, GameMeta, MatchView, SettingField } from "../../engine/types";
 import {
   Button,
@@ -102,6 +102,7 @@ export function GameShell({ envelope, seats, isHost, meta, settingsSchema, setti
       {myTurn && <div className="gc-turn-glow" aria-hidden />}
 
       {UI ? (
+        <GameErrorBoundary resetKey={envelope.seq}>
         <Suspense fallback={<div className="gc-scroll gc-center gc-muted">Loading game…</div>}>
           <UI
             view={envelope.view}
@@ -117,6 +118,7 @@ export function GameShell({ envelope, seats, isHost, meta, settingsSchema, setti
             pending={pending}
           />
         </Suspense>
+        </GameErrorBoundary>
       ) : (
         <div className="gc-scroll gc-center">This game isn't available in this version. Refresh to update.</div>
       )}
@@ -193,4 +195,32 @@ export function GameShell({ envelope, seats, isHost, meta, settingsSchema, setti
       </Sheet>
     </div>
   );
+}
+
+/**
+ * A game UI that throws must not blank the whole app: keep the header, menu and results sheet
+ * (End game / Leave still work) and retry on the next state update.
+ */
+class GameErrorBoundary extends Component<{ resetKey: number; children: ReactNode }, { failedAt: number | null }> {
+  state = { failedAt: null as number | null };
+  static getDerivedStateFromError() {
+    return { failedAt: -1 };
+  }
+  componentDidCatch(error: unknown) {
+    console.error("[GameShell] game UI crashed", error);
+    this.setState({ failedAt: this.props.resetKey });
+  }
+  componentDidUpdate() {
+    if (this.state.failedAt !== null && this.state.failedAt !== -1 && this.state.failedAt !== this.props.resetKey) {
+      this.setState({ failedAt: null });
+    }
+  }
+  render() {
+    if (this.state.failedAt === null) return this.props.children;
+    return (
+      <div className="gc-scroll gc-center gc-muted">
+        This game hit a problem showing the table. It will retry on the next move; the ☰ menu still works.
+      </div>
+    );
+  }
 }
