@@ -37,8 +37,9 @@ Phases: `"clue"` → `"guess"` → (`"clue"` for the other team …) → `"gameE
 - `word` validation (in `reduce`, `GameError` on failure): trimmed and upper-cased; 1–24 characters;
   **letters only** (any alphabet, `/^\p{L}+$/u`: no spaces, digits, hyphens or apostrophes → "one word");
   must not equal (case-insensitive) any **unrevealed** board word. With `strictClues` (default **on**) it is also
-  rejected if it contains, or is contained in, any unrevealed board word (e.g. board `SNOWMAN` blocks `SNOW`
-  and `SNOWMANS`; board `CAR` blocks `CARPET`). Revealed words may be used freely. The stored clue word is the
+  rejected if it **starts or ends with** an unrevealed board word, or an unrevealed board word starts or ends with
+  it (compounds and word forms: board `SNOWMAN` blocks `SNOW` and `SNOWMANS`; board `CAR` blocks `CARPET` and
+  `SIDECAR` but not `SCARY`; board `CAT` blocks `CATS`). Revealed words may be used freely. The stored clue word is the
   trimmed UPPERCASE form.
 - `count` must be an integer from **1 to 9**; with `allowZero` on, **0** is also allowed and means
   *unlimited guesses*.
@@ -98,7 +99,7 @@ Phases: `"clue"` → `"guess"` → (`"clue"` for the other team …) → `"gameE
 | `guessMode` | select `first`/`vote` | `first` | First agent tap counts / team majority vote |
 | `extraGuess` | boolean | true | Agents get clue number + 1 guesses (off: exactly the number) |
 | `allowZero` | boolean | false | Allow clue number 0 = unlimited guesses |
-| `strictClues` | boolean | true | Also block clues that contain / are part of a board word |
+| `strictClues` | boolean | true | Also block clues that start/end with a board word (or vice versa) |
 | `trapCount` | number 1–3 | 1 | Trap tiles on the board (neutral = 8 − traps) |
 | `clueTimer` | number 0–300 step 15 | 0 | Seconds for the Handler's clue (0 = off) |
 | `guessTimer` | number 0–300 step 15 | 0 | Seconds for the agents' guesses (0 = off) |
