@@ -38,7 +38,9 @@ A game is `rounds` rounds (default 5). Each round:
 6. **Last-chance guess** (`phase: "guess"`, only if caught and `lastChanceGuess` is on, default on): the
    caught imposter (the accused) gets exactly one guess at the word (`{ type: "guess", text }`). Correct =
    the imposters **steal** the round. Wrong, skipped by the host (`skipGuess`) or timed out
-   (`guessSeconds`) = the crew wins. The host's skip counts as "no guess" (wrong).
+   (`guessSeconds`) = the crew wins. The host's skip counts as "no guess" (wrong): in the round result
+   that is `guess: null, guessCorrect: false`; when there was no guess phase at all it is
+   `guess: null, guessCorrect: null`.
 7. **Reveal** (`phase: "reveal"`): the word, category, every imposter, every ballot's vote counts (and
    who voted for whom if `revealVotes`), the guess and the points are public. Points are added (section 4).
    The host sends `nextRound`. After the last round, `nextRound` ends the game (`phase: "over"`).
@@ -77,7 +79,9 @@ removed.
   apostrophes are fine.
 - `uniqueClues` on (default): normalized equal to an earlier clue of the same round: rejected.
 - `blockSecretWord` on (default), **crew only**: normalized clue contains the normalized word (e.g. word
-  `Pizza`, clue `pizzas` or `PIZZA!`): rejected ("Don't say the secret word!"). Imposters are never
+  `Pizza`, clue `pizzas` or `PIZZA!`): rejected ("Don't say the secret word!"). If the normalized word
+  is shorter than 3 characters (possible with custom words), only an exact normalized match is rejected.
+  Imposters are never
   rejected by this check (a rejection would tell them the word); an imposter whose clue happens to
   contain the word is accepted.
 
@@ -140,7 +144,9 @@ Seat order starting at the round's first clue-giver. Every clue pass uses the sa
 Pool = all words of the selected categories (custom words parsed: split on commas/newlines, trimmed,
 inner whitespace collapsed, empty and >30-char entries dropped, deduplicated by normalized form, max 100).
 A category is picked uniformly among selected categories that still have unused words, then a word of it
-uniformly. A word is not repeated within a game; if every word has been used the used-list resets.
+uniformly. A word is not repeated within a game; if every word has been used the used-list resets, and
+the previous round's word is still excluded for that pick when any other word exists (only a tiny custom
+pool can run out: built-in categories have 240 words and at most 20 rounds).
 
 ### 3.4 Ties (`tieRule`)
 - `revote` (default): if the first ballot ties, a second ballot is held among the tied players only
@@ -226,3 +232,22 @@ Bots finish every game at 4–12 players under every setting combination (verifi
   - host `ActionBar`: Skip (clue), Start vote (discuss), Close vote (vote), Skip guess (guess),
     Next round / Finish (reveal). Primary buttons disabled while `pending`.
 - Spectators (`me === null`): public board only, no HoldToReveal role, no controls.
+
+## 8. Notes for the test agent
+
+- State fields you will need (see `State` in `types.ts`): `word`, `category`, `imposters`, `clueOrder`,
+  `turn`, `clues`, `ballots` (open one last, `votes[id] = target | null`), `closedBallots`, `accused`,
+  `guessOptions`, `deadline`, `scores`, `history`. Use `h.setState` to craft positions.
+- Default seed behaviour: with `firstClue: "rotate"`, round 1's clue order starts at `p0`, round 2 at `p1`.
+- Leak checks: `findLeaks(view, [state.word])` must be empty for imposters and spectators in every phase
+  before `reveal`, except the guess phase in `choice` mode (options include the word by design). In
+  `imposterHint: "nothing"`, the same holds for `state.category`, but check it on the view **without
+  `history`**: categories repeat across rounds, so a past round's (public) category can equal the
+  current one. Likewise with a tiny custom pool words can repeat across rounds (exclude `history`).
+  Word lists are built so that no word is a substring of another word, a category label, a view key or a
+  bot clue, so substring false positives can't happen with built-in words.
+- Player ids appear everywhere (order, clues), so role leaks are checked structurally: before the reveal,
+  a crew/spectator view has `result: null`, `fellowImposters: []`, `accused: null` (except in `guess`),
+  `role` = own role, and no `votes` object outside `history` (`closedBallots[i].votes` is always `null`).
+- Exported pure helpers in `rules.ts` you may use: `normalize`, `guessMatches`, `parseCustomWords`,
+  `resolveImposterCount`, `BOT_CLUES`.
