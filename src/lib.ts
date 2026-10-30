@@ -4,9 +4,25 @@ import { ConvexError } from "convex/values";
 
 // ---------- Session (no accounts: a random device token in localStorage) ----------
 
-const TOKEN_KEY = "gamecrow:token";
-const NAME_KEY = "gamecrow:name";
-const LAST_ROOM_KEY = "gamecrow:lastRoom";
+/**
+ * Dev only: open a tab with `?player=2` (any label) to give that tab its own identity (token, name,
+ * last room), so one browser can seat several players. Remembered per tab in sessionStorage.
+ */
+const devPlayer = (() => {
+  if (!import.meta.env.DEV) return "";
+  try {
+    const label = new URLSearchParams(location.search).get("player");
+    if (label) sessionStorage.setItem("gamecrow:devPlayer", label);
+    return sessionStorage.getItem("gamecrow:devPlayer") ?? "";
+  } catch {
+    return "";
+  }
+})();
+const scoped = (key: string) => (devPlayer ? `${key}:${devPlayer}` : key);
+
+const TOKEN_KEY = scoped("gamecrow:token");
+const NAME_KEY = scoped("gamecrow:name");
+const LAST_ROOM_KEY = scoped("gamecrow:lastRoom");
 
 function storageGet(key: string): string | null {
   try {
